@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>AWS BREAKER</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0d1117;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Courier New', Courier, monospace;
+      color: #FF9900;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    h1 {
+      font-size: clamp(1.2rem, 4vw, 2rem);
+      letter-spacing: 0.3em;
+      text-shadow: 0 0 20px #FF9900, 0 0 40px #FF990066;
+      margin-bottom: 10px;
+    }
+
+    #game-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+
+    canvas {
+      display: block;
+      background: #1a1a2e;
+      border: 2px solid #FF990066;
+      box-shadow: 0 0 30px #FF990033, inset 0 0 30px #00000066;
+      max-width: 100vw;
+      max-height: 85vh;
+    }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(13, 17, 23, 0.88);
+      border-radius: 2px;
+    }
+
+    #overlay.active { display: flex; }
+
+    #overlay h2 {
+      font-size: clamp(1.4rem, 5vw, 2.4rem);
+      text-shadow: 0 0 20px currentColor;
+      margin-bottom: 16px;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    #overlay p {
+      font-size: clamp(0.9rem, 3vw, 1.2rem);
+      color: #ccc;
+      margin-bottom: 24px;
+    }
+
+    #overlay button {
+      background: #FF9900;
+      color: #0d1117;
+      border: none;
+      padding: 12px 36px;
+      font-size: clamp(0.9rem, 3vw, 1.1rem);
+      font-family: inherit;
+      font-weight: bold;
+      letter-spacing: 0.15em;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 0 16px #FF990088;
+    }
+
+    #overlay button:hover { background: #ffb347; transform: scale(1.05); }
+    #overlay button:active { transform: scale(0.97); }
+
+    #info {
+      margin-top: 8px;
+      font-size: clamp(0.65rem, 2vw, 0.8rem);
+      color: #666;
+      letter-spacing: 0.1em;
+    }
+  </style>
+</head>
+<body>
+  <h1>⚡ AWS BREAKER ⚡</h1>
+  <div id="game-wrapper">
+    <canvas id="c"></canvas>
+    <div id="overlay">
+      <h2 id="overlay-title"></h2>
+      <p id="overlay-msg"></p>
+      <button id="overlay-btn">▶ START</button>
+    </div>
+  </div>
+  <div id="info">Mouse / Arrow Keys / Touch to move paddle</div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ===== AWS Services Data ===== */
+    const AWS_SERVICES = [
+      { name: 'EC2',            icon: '🖥️',  color: '#FF9900' },
+      { name: 'S3',             icon: '🪣',  color: '#3F8624' },
+      { name: 'Lambda',         icon: 'λ',   color: '#FF9900' },
+      { name: 'RDS',            icon: '🗄️',  color: '#2E73B8' },
+      { name: 'CloudFront',     icon: '🌐',  color: '#8C4FFF' },
+      { name: 'DynamoDB',       icon: '⚡',  color: '#2E73B8' },
+      { name: 'IAM',            icon: '🔐',  color: '#DD344C' },
+      { name: 'VPC',            icon: '🏗️',  color: '#8C4FFF' },
+      { name: 'ECS',            icon: '🐳',  color: '#FF9900' },
+      { name: 'SQS',            icon: '📨',  color: '#FF4F8B' },
+      { name: 'SNS',            icon: '📢',  color: '#FF4F8B' },
+      { name: 'API Gateway',    icon: '🔗',  color: '#FF9900' },
+      { name: 'CloudWatch',     icon: '👁️',  color: '#FF4F8B' },
+      { name: 'Route 53',       icon: '🌍',  color: '#8C4FFF' },
+      { name: 'ELB',            icon: '⚖️',  color: '#FF9900' },
+      { name: 'Cognito',        icon: '👤',  color: '#DD344C' },
+      { name: 'Step Functions', icon: '🔄',  color: '#FF4F8B' },
+      { name: 'Glue',           icon: '🧩',  color: '#3F8624' },
+      { name: 'Redshift',       icon: '🔴',  color: '#2E73B8' },
+      { name: 'Bedrock',        icon: '🤖',  color: '#FF9900' },
+    ];
+
+    /* ===== Canvas setup ===== */
+    const canvas = document.getElementById('c');
+    const ctx    = canvas.getContext('2d');
+
+    const BASE_W = 800;
+    const BASE_H = 600;
+
+    function resizeCanvas() {
+      const maxW = Math.min(window.innerWidth,  BASE_W);
+      const maxH = Math.min(window.innerHeight * 0.85, BASE_H);
+      const scale = Math.min(maxW / BASE_W, maxH / BASE_H);
+      canvas.width  = BASE_W;
+      canvas.height = BASE_H;
+      canvas.style.width  = Math.floor(BASE_W * scale) + 'px';
+      canvas.style.height = Math.floor(BASE_H * scale) + 'px';
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    /* ===== Overlay helpers ===== */
+    const overlay    = document.getElementById('overlay');
+    const overlayTitle = document.getElementById('overlay-title');
+    const overlayMsg   = document.getElementById('overlay-msg');
+    const overlayBtn   = document.getElementById('overlay-btn');
+
+    function showOverlay(title, msg, btnText, color) {
+      overlayTitle.textContent = title;
+      overlayTitle.style.color = color || '#FF9900';
+      overlayMsg.textContent   = msg;
+      overlayBtn.textContent   = btnText;
+      overlay.classList.add('active');
+    }
+    function hideOverlay() { overlay.classList.remove('active'); }
+
+    /* ===== Game constants ===== */
+    const COLS     = 5;
+    const ROWS     = 4;
+    const BLOCK_W  = 130;
+    const BLOCK_H  = 48;
+    const BLOCK_GAP_X = 18;
+    const BLOCK_GAP_Y = 14;
+    const BLOCK_OFFSET_X = (BASE_W - (COLS * BLOCK_W + (COLS - 1) * BLOCK_GAP_X)) / 2;
+    const BLOCK_OFFSET_Y = 80;
+
+    const PADDLE_W    = 110;
+    const PADDLE_H    = 14;
+    const PADDLE_Y    = BASE_H - 50;
+    const BALL_RADIUS = 9;
+    const INITIAL_SPEED = 5;
+    const SPEED_INCREMENT = 0.5;
+    const MAX_LIVES   = 3;
+    const POINTS_PER_BLOCK = 10;
+
+    /* ===== Game state ===== */
+    let state, paddleX, ballX, ballY, ballDX, ballDY;
+    let blocks, particles, floatingTexts;
+    let score, lives, round;
+    let keys;
+    let animId;
+    let gameRunning = false;
+
+    /* ===== Particle system ===== */
+    function createParticles(bx, by, color) {
+      const count = 16;
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 / count) * i + (Math.random() - 0.5) * 0.4;
+        const speed = 2 + Math.random() * 4;
+        particles.push({
+          x: bx, y: by,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius: 2 + Math.random() * 3,
+          color,
+          alpha: 1,
+          life: 1,
+        });
+      }
+    }
+
+    function createFloatingText(text, x, y) {
+      floatingTexts.push({ text, x, y, alpha: 1, scale: 0.5, life: 1 });
+    }
+
+    /* ===== Block builder ===== */
+    function buildBlocks() {
+      const shuffled = [...AWS_SERVICES].sort(() => Math.random() - 0.5);
+      blocks = [];
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+          const idx = row * COLS + col;
+          const svc = shuffled[idx % shuffled.length];
+          blocks.push({
+            x:     BLOCK_OFFSET_X + col * (BLOCK_W + BLOCK_GAP_X),
+            y:     BLOCK_OFFSET_Y + row * (BLOCK_H + BLOCK_GAP_Y),
+            w:     BLOCK_W,
+            h:     BLOCK_H,
+            alive: true,
+            color: svc.color,
+            icon:  svc.icon,
+            name:  svc.name,
+          });
+        }
+      }
+    }
+
+    /* ===== Init / Reset ===== */
+    function initGame(newRound) {
+      round = newRound || 1;
+      if (!newRound || newRound === 1) {
+        score = 0;
+        lives = MAX_LIVES;
+      }
+      paddleX   = (BASE_W - PADDLE_W) / 2;
+      particles = [];
+      floatingTexts = [];
+      keys = {};
+      buildBlocks();
+      resetBall();
+      state = 'playing';
+      gameRunning = true;
+    }
+
+    function resetBall() {
+      ballX  = paddleX + PADDLE_W / 2;
+      ballY  = PADDLE_Y - BALL_RADIUS - 2;
+      const speed = INITIAL_SPEED + (round - 1) * SPEED_INCREMENT;
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.8;
+      ballDX = Math.cos(angle) * speed;
+      ballDY = Math.sin(angle) * speed;
+    }
+
+    /* ===== Input ===== */
+    document.addEventListener('keydown', e => {
+      keys[e.key] = true;
+      if (['ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
+    });
+    document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+    canvas.addEventListener('mousemove', e => {
+      if (!gameRunning) return;
+      const rect  = canvas.getBoundingClientRect();
+      const scaleX = BASE_W / rect.width;
+      const cx = (e.clientX - rect.left) * scaleX;
+      paddleX = Math.max(0, Math.min(BASE_W - PADDLE_W, cx - PADDLE_W / 2));
+    });
+
+    let touchStartX = 0, touchPaddleStart = 0;
+    canvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      touchStartX = e.touches[0].clientX;
+      touchPaddleStart = paddleX;
+    }, { passive: false });
+    canvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (!gameRunning) return;
+      const rect   = canvas.getBoundingClientRect();
+      const scaleX = BASE_W / rect.width;
+      const dx = (e.touches[0].clientX - touchStartX) * scaleX;
+      paddleX = Math.max(0, Math.min(BASE_W - PADDLE_W, touchPaddleStart + dx));
+    }, { passive: false });
+
+    overlayBtn.addEventListener('click', () => {
+      hideOverlay();
+      if (state === 'gameover' || state === 'title') {
+        initGame(1);
+      } else if (state === 'clear') {
+        initGame(round + 1);
+      }
+    });
+
+    /* ===== Collision helpers ===== */
+    function rectCircleCollide(rx, ry, rw, rh, cx, cy, cr) {
+      const nearX = Math.max(rx, Math.min(cx, rx + rw));
+      const nearY = Math.max(ry, Math.min(cy, ry + rh));
+      const dx = cx - nearX;
+      const dy = cy - nearY;
+      return dx * dx + dy * dy < cr * cr;
+    }
+
+    function resolveBlockCollision(block) {
+      const cx = block.x + block.w / 2;
+      const cy = block.y + block.h / 2;
+      const overlapX = (block.w / 2 + BALL_RADIUS) - Math.abs(ballX - cx);
+      const overlapY = (block.h / 2 + BALL_RADIUS) - Math.abs(ballY - cy);
+      if (overlapX < overlapY) {
+        ballDX *= -1;
+      } else {
+        ballDY *= -1;
+      }
+    }
+
+    /* ===== Update ===== */
+    function update() {
+      if (state !== 'playing') return;
+
+      /* Paddle keyboard */
+      const pSpeed = 7;
+      if (keys['ArrowLeft']  || keys['a'] || keys['A'])
+        paddleX = Math.max(0, paddleX - pSpeed);
+      if (keys['ArrowRight'] || keys['d'] || keys['D'])
+        paddleX = Math.min(BASE_W - PADDLE_W, paddleX + pSpeed);
+
+      /* Ball move */
+      ballX += ballDX;
+      ballY += ballDY;
+
+      /* Wall collisions */
+      if (ballX - BALL_RADIUS < 0)       { ballX = BALL_RADIUS;       ballDX = Math.abs(ballDX); }
+      if (ballX + BALL_RADIUS > BASE_W)  { ballX = BASE_W - BALL_RADIUS; ballDX = -Math.abs(ballDX); }
+      if (ballY - BALL_RADIUS < 0)       { ballY = BALL_RADIUS;       ballDY = Math.abs(ballDY); }
+
+      /* Paddle collision */
+      if (
+        ballY + BALL_RADIUS >= PADDLE_Y &&
+        ballY - BALL_RADIUS <= PADDLE_Y + PADDLE_H &&
+        ballX >= paddleX - BALL_RADIUS &&
+        ballX <= paddleX + PADDLE_W + BALL_RADIUS &&
+        ballDY > 0
+      ) {
+        ballDY = -Math.abs(ballDY);
+        /* Angle based on hit position */
+        const hitPos = (ballX - paddleX) / PADDLE_W; /* 0..1 */
+        const angle  = (hitPos - 0.5) * Math.PI * 0.7;
+        const speed  = Math.sqrt(ballDX * ballDX + ballDY * ballDY);
+        ballDX = Math.sin(angle) * speed;
+        ballDY = -Math.cos(angle) * speed;
+        ballY  = PADDLE_Y - BALL_RADIUS;
+      }
+
+      /* Block collisions */
+      let blocksLeft = 0;
+      for (const b of blocks) {
+        if (!b.alive) continue;
+        blocksLeft++;
+        if (rectCircleCollide(b.x, b.y, b.w, b.h, ballX, ballY, BALL_RADIUS)) {
+          b.alive = false;
+          blocksLeft--;
+          score += POINTS_PER_BLOCK;
+          resolveBlockCollision(b);
+          createParticles(b.x + b.w / 2, b.y + b.h / 2, b.color);
+          createFloatingText(b.icon + ' ' + b.name, b.x + b.w / 2, b.y + b.h / 2);
+          break; /* one block per frame */
+        }
+      }
+
+      /* All blocks gone → clear */
+      if (blocksLeft === 0) {
+        state = 'clear';
+        gameRunning = false;
+        showOverlay(
+          'AWS全滅！クリア🎉',
+          `Round ${round} ✦ Score: ${score}`,
+          `▶ Round ${round + 1} へ`,
+          '#FF9900'
+        );
+        return;
+      }
+
+      /* Ball fell */
+      if (ballY - BALL_RADIUS > BASE_H) {
+        lives--;
+        if (lives <= 0) {
+          state = 'gameover';
+          gameRunning = false;
+          showOverlay('AWSに敗北...😢', `Score: ${score}`, '▶ もう一度', '#DD344C');
+        } else {
+          resetBall();
+        }
+      }
+
+      /* Particles */
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.12; /* gravity */
+        p.life -= 0.025;
+        p.alpha = p.life;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+
+      /* Floating texts */
+      for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y    -= 1.2;
+        ft.life -= 0.018;
+        ft.alpha = ft.life;
+        ft.scale = Math.min(1, ft.scale + 0.06);
+        if (ft.life <= 0) floatingTexts.splice(i, 1);
+      }
+    }
+
+    /* ===== Draw helpers ===== */
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    /* ===== Draw ===== */
+    function draw() {
+      /* Background */
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, BASE_W, BASE_H);
+
+      /* Grid lines (subtle) */
+      ctx.strokeStyle = '#ffffff08';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < BASE_W; x += 40) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, BASE_H); ctx.stroke();
+      }
+      for (let y = 0; y < BASE_H; y += 40) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(BASE_W, y); ctx.stroke();
+      }
+
+      /* Header bar */
+      ctx.fillStyle = '#0d1117cc';
+      ctx.fillRect(0, 0, BASE_W, 60);
+      ctx.strokeStyle = '#FF990044';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, 60); ctx.lineTo(BASE_W, 60); ctx.stroke();
+
+      /* Score */
+      ctx.fillStyle = '#FF9900';
+      ctx.font = 'bold 18px "Courier New", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('SCORE: ' + score, 20, 36);
+
+      /* Round */
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#aaa';
+      ctx.font = '15px "Courier New", monospace';
+      ctx.fillText('ROUND ' + round, BASE_W / 2, 36);
+
+      /* Lives */
+      ctx.textAlign = 'right';
+      ctx.font = '20px serif';
+      let heartsStr = '';
+      for (let i = 0; i < MAX_LIVES; i++) heartsStr += (i < lives) ? '❤️' : '🖤';
+      ctx.fillText(heartsStr, BASE_W - 16, 38);
+
+      /* Blocks */
+      for (const b of blocks) {
+        if (!b.alive) continue;
+
+        /* Shadow */
+        ctx.shadowColor = b.color + '88';
+        ctx.shadowBlur  = 10;
+
+        /* Fill */
+        roundRect(b.x, b.y, b.w, b.h, 8);
+        const grad = ctx.createLinearGradient(b.x, b.y, b.x, b.y + b.h);
+        grad.addColorStop(0, b.color + 'dd');
+        grad.addColorStop(1, b.color + '88');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        /* Border */
+        ctx.strokeStyle = '#ffffff33';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+
+        /* Icon */
+        ctx.font = '18px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(b.icon, b.x + 22, b.y + b.h / 2);
+
+        /* Name */
+        const fontSize = b.name.length > 10 ? 10 : 11;
+        ctx.font = `bold ${fontSize}px "Courier New", monospace`;
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(b.name, b.x + b.w / 2 + 8, b.y + b.h / 2);
+      }
+      ctx.textBaseline = 'alphabetic';
+
+      /* Paddle */
+      ctx.shadowColor = '#FF990099';
+      ctx.shadowBlur  = 16;
+      roundRect(paddleX, PADDLE_Y, PADDLE_W, PADDLE_H, 6);
+      const pGrad = ctx.createLinearGradient(paddleX, PADDLE_Y, paddleX, PADDLE_Y + PADDLE_H);
+      pGrad.addColorStop(0, '#FFBB33');
+      pGrad.addColorStop(1, '#FF8800');
+      ctx.fillStyle = pGrad;
+      ctx.fill();
+      ctx.strokeStyle = '#fff4';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      /* Ball */
+      ctx.shadowColor = '#ffffffaa';
+      ctx.shadowBlur  = 18;
+      ctx.beginPath();
+      ctx.arc(ballX, ballY, BALL_RADIUS, 0, Math.PI * 2);
+      const bGrad = ctx.createRadialGradient(ballX - 2, ballY - 2, 1, ballX, ballY, BALL_RADIUS);
+      bGrad.addColorStop(0, '#ffffff');
+      bGrad.addColorStop(1, '#cccccc');
+      ctx.fillStyle = bGrad;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      /* Particles */
+      for (const p of particles) {
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      /* Floating texts */
+      for (const ft of floatingTexts) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, ft.alpha);
+        ctx.translate(ft.x, ft.y);
+        ctx.scale(ft.scale, ft.scale);
+        ctx.font = 'bold 22px "Courier New", monospace';
+        ctx.textAlign  = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle  = '#fff';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur  = 8;
+        ctx.fillText(ft.text, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    /* ===== Game loop ===== */
+    function loop() {
+      update();
+      draw();
+      animId = requestAnimationFrame(loop);
+    }
+
+    /* ===== Start ===== */
+    state = 'title';
+    score = 0; lives = MAX_LIVES; round = 1;
+    buildBlocks();
+    paddleX = (BASE_W - PADDLE_W) / 2;
+    resetBall();
+    particles = []; floatingTexts = []; keys = {};
+
+    showOverlay('⚡ AWS BREAKER ⚡', 'AWSサービスをすべて破壊せよ！', '▶ START', '#FF9900');
+
+    /* Run the animation loop (update is a no-op until state==='playing') */
+    loop();
+
+  }());
+  </script>
+</body>
+</html>
