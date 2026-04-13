@@ -2,592 +2,1022 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>AWS BREAKER</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MINIMAL SHOP</title>
+
+  <!-- Google Fonts: 日本語フォント + 英字見出しフォント -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet" />
+
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    /* =====================================================
+       CSS カスタムプロパティ（色・余白・トランジション）
+    ===================================================== */
+    :root {
+      --color-bg: #ffffff;
+      --color-text: #1a1a1a;
+      --color-accent: #3b5bdb;
+      --color-sub-bg: #f8f9fa;
+      --color-border: #e9ecef;
+      --color-dark: #1a1a1a;
+      --transition: 0.3s ease;
+      --radius: 8px;
+    }
+
+    /* =====================================================
+       リセット & ベーススタイル
+    ===================================================== */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth; /* スムーズスクロール */
+    }
 
     body {
-      background: #0d1117;
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.7;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    /* =====================================================
+       アニメーション定義
+    ===================================================== */
+
+    /* 下からフェードイン */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 上下に浮遊（スクロールインジケーター用） */
+    @keyframes floating {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-8px); }
+    }
+
+    /* セクション見出しの縦線が伸びるアニメーション */
+    @keyframes lineGrow {
+      from { height: 0; }
+      to   { height: 100%; }
+    }
+
+    /* 特集バナーの背景グラデーションが動くアニメーション */
+    @keyframes bgShift {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* =====================================================
+       ナビゲーション
+    ===================================================== */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
       display: flex;
-      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      font-family: 'Courier New', Courier, monospace;
-      color: #FF9900;
-      overflow: hidden;
-      user-select: none;
+      justify-content: space-between;
+      padding: 1.2rem 2rem;
+      /* 初期状態: 背景透明、文字白 */
+      background: transparent;
+      color: #ffffff;
+      transition: background var(--transition), color var(--transition), border-color var(--transition);
+      border-bottom: 1px solid transparent;
     }
 
-    h1 {
-      font-size: clamp(1.2rem, 4vw, 2rem);
-      letter-spacing: 0.3em;
-      text-shadow: 0 0 20px #FF9900, 0 0 40px #FF990066;
-      margin-bottom: 10px;
+    /* スクロール後: 背景白、文字黒、下ボーダー */
+    .nav.scrolled {
+      background: var(--color-bg);
+      color: var(--color-text);
+      border-bottom-color: var(--color-border);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
     }
 
-    #game-wrapper {
-      position: relative;
-      display: inline-block;
+    /* ロゴ */
+    .nav-logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
     }
 
-    canvas {
-      display: block;
-      background: #1a1a2e;
-      border: 2px solid #FF990066;
-      box-shadow: 0 0 30px #FF990033, inset 0 0 30px #00000066;
-      max-width: 100vw;
-      max-height: 85vh;
+    /* デスクトップメニュー */
+    .nav-menu {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
     }
 
-    #overlay {
-      position: absolute;
-      inset: 0;
+    .nav-menu a {
+      font-size: 0.85rem;
+      letter-spacing: 0.08em;
+      transition: opacity var(--transition);
+    }
+
+    .nav-menu a:hover {
+      opacity: 0.6;
+    }
+
+    /* ハンバーガーボタン（スマホ用） */
+    .hamburger {
       display: none;
       flex-direction: column;
+      gap: 5px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 4px;
+    }
+
+    .hamburger span {
+      display: block;
+      width: 24px;
+      height: 2px;
+      background: currentColor;
+      transition: transform var(--transition), opacity var(--transition);
+    }
+
+    /* ハンバーガーが開いている状態 */
+    .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; }
+    .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    /* モバイルメニュー（ドロップダウン） */
+    .nav-mobile-menu {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--color-bg);
+      z-index: 99;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: rgba(13, 17, 23, 0.88);
-      border-radius: 2px;
+      gap: 2rem;
     }
 
-    #overlay.active { display: flex; }
-
-    #overlay h2 {
-      font-size: clamp(1.4rem, 5vw, 2.4rem);
-      text-shadow: 0 0 20px currentColor;
-      margin-bottom: 16px;
-      text-align: center;
-      padding: 0 20px;
+    .nav-mobile-menu.open {
+      display: flex;
     }
 
-    #overlay p {
-      font-size: clamp(0.9rem, 3vw, 1.2rem);
-      color: #ccc;
-      margin-bottom: 24px;
-    }
-
-    #overlay button {
-      background: #FF9900;
-      color: #0d1117;
-      border: none;
-      padding: 12px 36px;
-      font-size: clamp(0.9rem, 3vw, 1.1rem);
-      font-family: inherit;
-      font-weight: bold;
-      letter-spacing: 0.15em;
-      cursor: pointer;
-      border-radius: 4px;
-      transition: background 0.2s, transform 0.1s;
-      box-shadow: 0 0 16px #FF990088;
-    }
-
-    #overlay button:hover { background: #ffb347; transform: scale(1.05); }
-    #overlay button:active { transform: scale(0.97); }
-
-    #info {
-      margin-top: 8px;
-      font-size: clamp(0.65rem, 2vw, 0.8rem);
-      color: #666;
+    .nav-mobile-menu a {
+      font-size: 1.4rem;
+      font-family: 'Playfair Display', serif;
       letter-spacing: 0.1em;
+      color: var(--color-text);
+    }
+
+    /* =====================================================
+       ヒーローセクション
+    ===================================================== */
+    .hero {
+      position: relative;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* 背景: 白→薄いブルーのグラデーション */
+      background: linear-gradient(160deg, #ffffff 0%, #e8eeff 60%, #c5cffa 100%);
+      overflow: hidden;
+    }
+
+    .hero-content {
+      text-align: center;
+      padding: 0 1.5rem;
+    }
+
+    /* NEW COLLECTION ラベル */
+    .hero-label {
+      font-size: 0.75rem;
+      letter-spacing: 0.35em;
+      color: var(--color-accent);
+      margin-bottom: 1.2rem;
+      /* フェードイン: 0.8秒、遅延なし */
+      animation: fadeInUp 0.8s ease both;
+    }
+
+    /* 大見出し */
+    .hero-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(3.5rem, 10vw, 7rem);
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: 0.05em;
+      color: var(--color-dark);
+      /* フェードイン: 0.8秒、0.2秒後 */
+      animation: fadeInUp 0.8s ease 0.2s both;
+    }
+
+    /* キャッチコピー */
+    .hero-sub {
+      font-size: 1.05rem;
+      color: #555;
+      margin-top: 1.4rem;
+      /* フェードイン: 0.8秒、0.7秒後 */
+      animation: fadeInUp 0.8s ease 0.7s both;
+    }
+
+    /* CTAボタン */
+    .btn-primary {
+      display: inline-block;
+      margin-top: 2rem;
+      padding: 0.9rem 2.4rem;
+      background: var(--color-accent);
+      color: #ffffff;
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+      font-weight: 500;
+      transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+      /* フェードイン: 0.8秒、1.2秒後 */
+      animation: fadeInUp 0.8s ease 1.2s both;
+    }
+
+    .btn-primary:hover {
+      background: #2f4ac5;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(59, 91, 219, 0.35);
+    }
+
+    /* スクロールインジケーター */
+    .scroll-indicator {
+      position: absolute;
+      bottom: 2.5rem;
+      right: 2.5rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      color: #888;
+      /* 上下浮遊アニメーション（無限） */
+      animation: floating 2s ease-in-out infinite;
+      writing-mode: vertical-rl; /* 縦書き */
+    }
+
+    /* =====================================================
+       セクション共通レイアウト
+    ===================================================== */
+    .section {
+      padding: 6rem 2rem;
+    }
+
+    .section-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* =====================================================
+       セクション見出し（共通パーツ）
+    ===================================================== */
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 1.2rem;
+      margin-bottom: 3.5rem;
+      position: relative;
+    }
+
+    /* 左側の縦線アクセント */
+    .section-header::before {
+      content: '';
+      display: block;
+      width: 3px;
+      height: 0; /* JSでvisibleクラスが付くと100%になる */
+      background: var(--color-accent);
+      flex-shrink: 0;
+      margin-top: 4px;
+      transition: height 0.6s ease;
+    }
+
+    /* スクロールで表示されたとき縦線を伸ばす */
+    .section-header.visible::before {
+      height: 100%;
+    }
+
+    .section-header-text {
+      opacity: 0;
+      transform: translateX(-10px);
+      transition: opacity 0.5s ease 0.4s, transform 0.5s ease 0.4s;
+    }
+
+    .section-header.visible .section-header-text {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    /* 英字ラベル */
+    .section-label {
+      display: block;
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      line-height: 1.1;
+      color: var(--color-dark);
+    }
+
+    /* 日本語小見出し */
+    .section-title {
+      display: block;
+      font-size: 0.875rem;
+      color: #888;
+      letter-spacing: 0.1em;
+      margin-top: 0.4rem;
+    }
+
+    /* =====================================================
+       商品一覧セクション
+    ===================================================== */
+    .products {
+      background: var(--color-sub-bg);
+    }
+
+    /* CSS Grid: PC=3列、タブレット=2列、スマホ=1列 */
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.8rem;
+    }
+
+    /* 商品カード */
+    .product-card {
+      background: var(--color-bg);
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+      /* スクロール前は非表示 */
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.5s ease, transform 0.5s ease,
+                  box-shadow var(--transition);
+    }
+
+    /* Intersection Observer で .visible クラスが付くと表示 */
+    .product-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ホバー: カードが浮き上がる */
+    .product-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    /* .visible のときにホバーが効くよう上書き */
+    .product-card.visible:hover {
+      transform: translateY(-3px);
+    }
+
+    /* 商品画像エリア（絵文字で代替） */
+    .card-image {
+      position: relative;
+      height: 200px;
+      background: var(--color-sub-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .product-emoji {
+      font-size: 4.5rem;
+      line-height: 1;
+      transition: transform var(--transition);
+    }
+
+    .product-card:hover .product-emoji {
+      transform: scale(1.1);
+    }
+
+    /* ホバーオーバーレイ */
+    .card-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(59, 91, 219, 0.88);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+
+    .card-image:hover .card-overlay {
+      opacity: 1;
+    }
+
+    /* カートに追加ボタン */
+    .btn-cart {
+      background: #ffffff;
+      color: var(--color-accent);
+      border: none;
+      padding: 0.7rem 1.6rem;
+      border-radius: var(--radius);
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: background var(--transition), transform var(--transition);
+    }
+
+    .btn-cart:hover {
+      background: var(--color-accent);
+      color: #ffffff;
+      transform: scale(1.04);
+    }
+
+    /* カード本文エリア */
+    .card-body {
+      padding: 1.2rem 1.4rem 1.5rem;
+    }
+
+    .card-category {
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      color: var(--color-accent);
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+
+    .card-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--color-dark);
+    }
+
+    .card-price {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--color-accent);
+      font-family: 'Playfair Display', serif;
+    }
+
+    /* =====================================================
+       特集バナーセクション
+    ===================================================== */
+    .feature-banner {
+      /* ダーク背景 + アニメーショングラデーション */
+      background: linear-gradient(135deg, #1a1a1a, #2d3561, #1a1a1a);
+      background-size: 200% 200%;
+      animation: bgShift 8s ease infinite;
+      padding: 6rem 4rem;
+      text-align: center;
+      color: #ffffff;
+    }
+
+    .feature-inner {
+      max-width: 700px;
+      margin: 0 auto;
+      /* スクロール前は左にずれて非表示 */
+      opacity: 0;
+      transform: translateX(-40px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+
+    .feature-inner.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    /* SPECIAL FEATURE ラベル */
+    .feature-label {
+      display: inline-block;
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      color: var(--color-accent);
+      border: 1px solid var(--color-accent);
+      padding: 0.3rem 0.9rem;
+      border-radius: 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .feature-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+    }
+
+    .feature-desc {
+      font-size: 0.95rem;
+      color: #aaa;
+      line-height: 1.9;
+      margin-bottom: 2rem;
+    }
+
+    /* 特集CTAボタン（枠線スタイル） */
+    .btn-outline {
+      display: inline-block;
+      padding: 0.85rem 2.4rem;
+      border: 1.5px solid #ffffff;
+      color: #ffffff;
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      letter-spacing: 0.1em;
+      transition: background var(--transition), color var(--transition);
+    }
+
+    .btn-outline:hover {
+      background: #ffffff;
+      color: var(--color-dark);
+    }
+
+    /* =====================================================
+       フッター
+    ===================================================== */
+    .footer {
+      background: var(--color-dark);
+      color: #aaa;
+      padding: 4rem 2rem 2rem;
+    }
+
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* 上段: ロゴ + SNS + 住所 */
+    .footer-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 2rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid #333;
+      margin-bottom: 1.5rem;
+    }
+
+    .footer-logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      color: #ffffff;
+      letter-spacing: 0.1em;
+    }
+
+    .footer-tagline {
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+      color: #666;
+    }
+
+    /* SNSアイコン（絵文字代替） */
+    .footer-sns {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .footer-sns a {
+      font-size: 1.4rem;
+      transition: transform var(--transition), opacity var(--transition);
+      display: block;
+    }
+
+    .footer-sns a:hover {
+      transform: translateY(-2px);
+      opacity: 0.8;
+    }
+
+    /* 住所情報 */
+    .footer-address {
+      font-size: 0.8rem;
+      line-height: 2;
+    }
+
+    /* 下段: コピーライト */
+    .footer-bottom {
+      font-size: 0.75rem;
+      color: #555;
+      text-align: center;
+    }
+
+    /* =====================================================
+       スクロールトップボタン
+    ===================================================== */
+    .scroll-top {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      width: 48px;
+      height: 48px;
+      background: var(--color-accent);
+      color: #ffffff;
+      border: none;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* 初期状態: 非表示 */
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition), transform var(--transition);
+      z-index: 200;
+      box-shadow: 0 4px 16px rgba(59, 91, 219, 0.4);
+    }
+
+    /* スクロール時に表示 */
+    .scroll-top.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .scroll-top:hover {
+      transform: translateY(-3px);
+    }
+
+    /* =====================================================
+       レスポンシブ対応
+    ===================================================== */
+
+    /* タブレット: 768px ~ 1023px */
+    @media (min-width: 768px) and (max-width: 1023px) {
+      .products-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* スマホ: ~ 767px */
+    @media (max-width: 767px) {
+      .nav {
+        padding: 1rem 1.2rem;
+      }
+
+      .nav-menu {
+        display: none; /* ハンバーガーで制御 */
+      }
+
+      .hamburger {
+        display: flex;
+      }
+
+      .hero-title {
+        font-size: 2.5rem;
+      }
+
+      .products-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .feature-banner {
+        padding: 3rem 1.5rem;
+      }
+
+      .section {
+        padding: 4rem 1.2rem;
+      }
+
+      .footer-top {
+        flex-direction: column;
+      }
+
+      .scroll-indicator {
+        right: 1.2rem;
+        bottom: 1.5rem;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>⚡ AWS BREAKER ⚡</h1>
-  <div id="game-wrapper">
-    <canvas id="c"></canvas>
-    <div id="overlay">
-      <h2 id="overlay-title"></h2>
-      <p id="overlay-msg"></p>
-      <button id="overlay-btn">▶ START</button>
-    </div>
-  </div>
-  <div id="info">Mouse / Arrow Keys / Touch to move paddle</div>
 
+  <!-- =====================================================
+       ナビゲーション
+  ===================================================== -->
+  <nav class="nav" id="main-nav">
+    <!-- ロゴ -->
+    <a href="#" class="nav-logo">MINIMAL SHOP</a>
+
+    <!-- デスクトップ用メニュー -->
+    <ul class="nav-menu">
+      <li><a href="#products">新着商品</a></li>
+      <li><a href="#products">カテゴリ</a></li>
+      <li><a href="#feature">特集</a></li>
+      <li><a href="#footer">お問い合わせ</a></li>
+    </ul>
+
+    <!-- ハンバーガーボタン（スマホ用） -->
+    <button class="hamburger" id="hamburger" aria-label="メニューを開く">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+  </nav>
+
+  <!-- モバイルメニュー（全画面） -->
+  <div class="nav-mobile-menu" id="mobile-menu">
+    <a href="#products" class="mobile-link">新着商品</a>
+    <a href="#products" class="mobile-link">カテゴリ</a>
+    <a href="#feature" class="mobile-link">特集</a>
+    <a href="#footer" class="mobile-link">お問い合わせ</a>
+  </div>
+
+  <!-- =====================================================
+       ヒーローセクション
+  ===================================================== -->
+  <section class="hero" id="hero">
+    <div class="hero-content">
+      <p class="hero-label">NEW COLLECTION</p>
+      <h1 class="hero-title">MINIMAL<br>SHOP</h1>
+      <p class="hero-sub">シンプルで上質なものだけを。</p>
+      <a href="#products" class="btn-primary">商品を見る</a>
+    </div>
+    <!-- スクロールインジケーター（上下に浮遊） -->
+    <div class="scroll-indicator">SCROLL ↓</div>
+  </section>
+
+  <!-- =====================================================
+       商品一覧セクション
+  ===================================================== -->
+  <section class="section products" id="products">
+    <div class="section-inner">
+
+      <!-- セクション見出し（共通パーツ） -->
+      <div class="section-header" id="products-header">
+        <div class="section-header-text">
+          <span class="section-label">PRODUCTS</span>
+          <h2 class="section-title">商品一覧</h2>
+        </div>
+      </div>
+
+      <!-- 商品グリッド -->
+      <div class="products-grid">
+
+        <!-- 商品1 -->
+        <article class="product-card">
+          <div class="card-image">
+            <span class="product-emoji">🧴</span>
+            <div class="card-overlay">
+              <button class="btn-cart">カートに追加</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <p class="card-category">スキンケア</p>
+            <h3 class="card-name">モイスチャークリーム</h3>
+            <p class="card-price">¥ 3,800</p>
+          </div>
+        </article>
+
+        <!-- 商品2 -->
+        <article class="product-card">
+          <div class="card-image">
+            <span class="product-emoji">👜</span>
+            <div class="card-overlay">
+              <button class="btn-cart">カートに追加</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <p class="card-category">バッグ</p>
+            <h3 class="card-name">レザートートバッグ</h3>
+            <p class="card-price">¥ 12,500</p>
+          </div>
+        </article>
+
+        <!-- 商品3 -->
+        <article class="product-card">
+          <div class="card-image">
+            <span class="product-emoji">🕯️</span>
+            <div class="card-overlay">
+              <button class="btn-cart">カートに追加</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <p class="card-category">インテリア</p>
+            <h3 class="card-name">ソイキャンドル</h3>
+            <p class="card-price">¥ 2,400</p>
+          </div>
+        </article>
+
+        <!-- 商品4 -->
+        <article class="product-card">
+          <div class="card-image">
+            <span class="product-emoji">👕</span>
+            <div class="card-overlay">
+              <button class="btn-cart">カートに追加</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <p class="card-category">アパレル</p>
+            <h3 class="card-name">オーガニックTシャツ</h3>
+            <p class="card-price">¥ 4,200</p>
+          </div>
+        </article>
+
+        <!-- 商品5 -->
+        <article class="product-card">
+          <div class="card-image">
+            <span class="product-emoji">☕</span>
+            <div class="card-overlay">
+              <button class="btn-cart">カートに追加</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <p class="card-category">キッチン</p>
+            <h3 class="card-name">ハンドドリッパー</h3>
+            <p class="card-price">¥ 3,600</p>
+          </div>
+        </article>
+
+        <!-- 商品6 -->
+        <article class="product-card">
+          <div class="card-image">
+            <span class="product-emoji">📓</span>
+            <div class="card-overlay">
+              <button class="btn-cart">カートに追加</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <p class="card-category">ステーショナリー</p>
+            <h3 class="card-name">レザーノート</h3>
+            <p class="card-price">¥ 2,800</p>
+          </div>
+        </article>
+
+      </div><!-- /.products-grid -->
+    </div><!-- /.section-inner -->
+  </section>
+
+  <!-- =====================================================
+       特集バナーセクション
+  ===================================================== -->
+  <section class="feature-banner" id="feature">
+    <div class="feature-inner" id="feature-inner">
+      <span class="feature-label">SPECIAL FEATURE</span>
+      <h2 class="feature-title">今月のおすすめ特集</h2>
+      <p class="feature-desc">
+        厳選されたアイテムをひとつひとつ丁寧にご紹介します。<br>
+        日常をちょっと豊かにするものが、ここにあります。
+      </p>
+      <a href="#products" class="btn-outline">特集を見る →</a>
+    </div>
+  </section>
+
+  <!-- =====================================================
+       フッター
+  ===================================================== -->
+  <footer class="footer" id="footer">
+    <div class="footer-inner">
+      <div class="footer-top">
+
+        <!-- ロゴ + タグライン -->
+        <div>
+          <div class="footer-logo">MINIMAL SHOP</div>
+          <p class="footer-tagline">シンプルで上質なものだけを。</p>
+        </div>
+
+        <!-- SNSアイコン（絵文字で代替） -->
+        <div class="footer-sns">
+          <a href="#" aria-label="Instagram">📷</a>
+          <a href="#" aria-label="Twitter/X">🐦</a>
+          <a href="#" aria-label="LINE">💬</a>
+          <a href="#" aria-label="YouTube">▶️</a>
+        </div>
+
+        <!-- 住所情報 -->
+        <address class="footer-address">
+          〒000-0000<br>
+          東京都渋谷区〇〇町 1-2-3<br>
+          TEL: 03-0000-0000<br>
+          MAIL: info@minimal-shop.jp
+        </address>
+
+      </div><!-- /.footer-top -->
+
+      <p class="footer-bottom">© 2025 MINIMAL SHOP. All rights reserved.</p>
+    </div><!-- /.footer-inner -->
+  </footer>
+
+  <!-- =====================================================
+       スクロールトップボタン
+  ===================================================== -->
+  <button class="scroll-top" id="scroll-top" aria-label="ページトップへ">↑</button>
+
+  <!-- =====================================================
+       JavaScript
+  ===================================================== -->
   <script>
   (function () {
     'use strict';
 
-    /* ===== AWS Services Data ===== */
-    const AWS_SERVICES = [
-      { name: 'EC2',            icon: '🖥️',  color: '#FF9900' },
-      { name: 'S3',             icon: '🪣',  color: '#3F8624' },
-      { name: 'Lambda',         icon: 'λ',   color: '#FF9900' },
-      { name: 'RDS',            icon: '🗄️',  color: '#2E73B8' },
-      { name: 'CloudFront',     icon: '🌐',  color: '#8C4FFF' },
-      { name: 'DynamoDB',       icon: '⚡',  color: '#2E73B8' },
-      { name: 'IAM',            icon: '🔐',  color: '#DD344C' },
-      { name: 'VPC',            icon: '🏗️',  color: '#8C4FFF' },
-      { name: 'ECS',            icon: '🐳',  color: '#FF9900' },
-      { name: 'SQS',            icon: '📨',  color: '#FF4F8B' },
-      { name: 'SNS',            icon: '📢',  color: '#FF4F8B' },
-      { name: 'API Gateway',    icon: '🔗',  color: '#FF9900' },
-      { name: 'CloudWatch',     icon: '👁️',  color: '#FF4F8B' },
-      { name: 'Route 53',       icon: '🌍',  color: '#8C4FFF' },
-      { name: 'ELB',            icon: '⚖️',  color: '#FF9900' },
-      { name: 'Cognito',        icon: '👤',  color: '#DD344C' },
-      { name: 'Step Functions', icon: '🔄',  color: '#FF4F8B' },
-      { name: 'Glue',           icon: '🧩',  color: '#3F8624' },
-      { name: 'Redshift',       icon: '🔴',  color: '#2E73B8' },
-      { name: 'Bedrock',        icon: '🤖',  color: '#FF9900' },
-    ];
+    /* -------------------------------------------------
+       1. ナビゲーション: スクロールで背景色を変更
+    ------------------------------------------------- */
+    const nav = document.querySelector('.nav');
 
-    /* ===== Canvas setup ===== */
-    const canvas = document.getElementById('c');
-    const ctx    = canvas.getContext('2d');
-
-    const BASE_W = 800;
-    const BASE_H = 600;
-
-    function resizeCanvas() {
-      const maxW = Math.min(window.innerWidth,  BASE_W);
-      const maxH = Math.min(window.innerHeight * 0.85, BASE_H);
-      const scale = Math.min(maxW / BASE_W, maxH / BASE_H);
-      canvas.width  = BASE_W;
-      canvas.height = BASE_H;
-      canvas.style.width  = Math.floor(BASE_W * scale) + 'px';
-      canvas.style.height = Math.floor(BASE_H * scale) + 'px';
-    }
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
-    /* ===== Overlay helpers ===== */
-    const overlay    = document.getElementById('overlay');
-    const overlayTitle = document.getElementById('overlay-title');
-    const overlayMsg   = document.getElementById('overlay-msg');
-    const overlayBtn   = document.getElementById('overlay-btn');
-
-    function showOverlay(title, msg, btnText, color) {
-      overlayTitle.textContent = title;
-      overlayTitle.style.color = color || '#FF9900';
-      overlayMsg.textContent   = msg;
-      overlayBtn.textContent   = btnText;
-      overlay.classList.add('active');
-    }
-    function hideOverlay() { overlay.classList.remove('active'); }
-
-    /* ===== Game constants ===== */
-    const COLS     = 5;
-    const ROWS     = 4;
-    const BLOCK_W  = 130;
-    const BLOCK_H  = 48;
-    const BLOCK_GAP_X = 18;
-    const BLOCK_GAP_Y = 14;
-    const BLOCK_OFFSET_X = (BASE_W - (COLS * BLOCK_W + (COLS - 1) * BLOCK_GAP_X)) / 2;
-    const BLOCK_OFFSET_Y = 80;
-
-    const PADDLE_W    = 110;
-    const PADDLE_H    = 14;
-    const PADDLE_Y    = BASE_H - 50;
-    const BALL_RADIUS = 9;
-    const INITIAL_SPEED = 5;
-    const SPEED_INCREMENT = 0.5;
-    const MAX_LIVES   = 3;
-    const POINTS_PER_BLOCK = 10;
-
-    /* ===== Game state ===== */
-    let state, paddleX, ballX, ballY, ballDX, ballDY;
-    let blocks, particles, floatingTexts;
-    let score, lives, round;
-    let keys;
-    let animId;
-    let gameRunning = false;
-
-    /* ===== Particle system ===== */
-    function createParticles(bx, by, color) {
-      const count = 16;
-      for (let i = 0; i < count; i++) {
-        const angle = (Math.PI * 2 / count) * i + (Math.random() - 0.5) * 0.4;
-        const speed = 2 + Math.random() * 4;
-        particles.push({
-          x: bx, y: by,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          radius: 2 + Math.random() * 3,
-          color,
-          alpha: 1,
-          life: 1,
-        });
-      }
-    }
-
-    function createFloatingText(text, x, y) {
-      floatingTexts.push({ text, x, y, alpha: 1, scale: 0.5, life: 1 });
-    }
-
-    /* ===== Block builder ===== */
-    function buildBlocks() {
-      const shuffled = [...AWS_SERVICES].sort(() => Math.random() - 0.5);
-      blocks = [];
-      for (let row = 0; row < ROWS; row++) {
-        for (let col = 0; col < COLS; col++) {
-          const idx = row * COLS + col;
-          const svc = shuffled[idx % shuffled.length];
-          blocks.push({
-            x:     BLOCK_OFFSET_X + col * (BLOCK_W + BLOCK_GAP_X),
-            y:     BLOCK_OFFSET_Y + row * (BLOCK_H + BLOCK_GAP_Y),
-            w:     BLOCK_W,
-            h:     BLOCK_H,
-            alive: true,
-            color: svc.color,
-            icon:  svc.icon,
-            name:  svc.name,
-          });
-        }
-      }
-    }
-
-    /* ===== Init / Reset ===== */
-    function initGame(newRound) {
-      round = newRound || 1;
-      if (!newRound || newRound === 1) {
-        score = 0;
-        lives = MAX_LIVES;
-      }
-      paddleX   = (BASE_W - PADDLE_W) / 2;
-      particles = [];
-      floatingTexts = [];
-      keys = {};
-      buildBlocks();
-      resetBall();
-      state = 'playing';
-      gameRunning = true;
-    }
-
-    function resetBall() {
-      ballX  = paddleX + PADDLE_W / 2;
-      ballY  = PADDLE_Y - BALL_RADIUS - 2;
-      const speed = INITIAL_SPEED + (round - 1) * SPEED_INCREMENT;
-      const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.8;
-      ballDX = Math.cos(angle) * speed;
-      ballDY = Math.sin(angle) * speed;
-    }
-
-    /* ===== Input ===== */
-    document.addEventListener('keydown', e => {
-      keys[e.key] = true;
-      if (['ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
-    });
-    document.addEventListener('keyup', e => { keys[e.key] = false; });
-
-    canvas.addEventListener('mousemove', e => {
-      if (!gameRunning) return;
-      const rect  = canvas.getBoundingClientRect();
-      const scaleX = BASE_W / rect.width;
-      const cx = (e.clientX - rect.left) * scaleX;
-      paddleX = Math.max(0, Math.min(BASE_W - PADDLE_W, cx - PADDLE_W / 2));
-    });
-
-    let touchStartX = 0, touchPaddleStart = 0;
-    canvas.addEventListener('touchstart', e => {
-      e.preventDefault();
-      touchStartX = e.touches[0].clientX;
-      touchPaddleStart = paddleX;
-    }, { passive: false });
-    canvas.addEventListener('touchmove', e => {
-      e.preventDefault();
-      if (!gameRunning) return;
-      const rect   = canvas.getBoundingClientRect();
-      const scaleX = BASE_W / rect.width;
-      const dx = (e.touches[0].clientX - touchStartX) * scaleX;
-      paddleX = Math.max(0, Math.min(BASE_W - PADDLE_W, touchPaddleStart + dx));
-    }, { passive: false });
-
-    overlayBtn.addEventListener('click', () => {
-      hideOverlay();
-      if (state === 'gameover') {
-        initGame(1);
-      } else if (state === 'clear') {
-        initGame(round + 1);
-      }
-    });
-
-    /* ===== Collision helpers ===== */
-    function rectCircleCollide(rx, ry, rw, rh, cx, cy, cr) {
-      const nearX = Math.max(rx, Math.min(cx, rx + rw));
-      const nearY = Math.max(ry, Math.min(cy, ry + rh));
-      const dx = cx - nearX;
-      const dy = cy - nearY;
-      return dx * dx + dy * dy < cr * cr;
-    }
-
-    function resolveBlockCollision(block) {
-      const cx = block.x + block.w / 2;
-      const cy = block.y + block.h / 2;
-      const overlapX = (block.w / 2 + BALL_RADIUS) - Math.abs(ballX - cx);
-      const overlapY = (block.h / 2 + BALL_RADIUS) - Math.abs(ballY - cy);
-      if (overlapX < overlapY) {
-        ballDX *= -1;
+    window.addEventListener('scroll', () => {
+      // 100px以上スクロールしたら .scrolled クラスを付ける
+      if (window.scrollY > 100) {
+        nav.classList.add('scrolled');
       } else {
-        ballDY *= -1;
-      }
-    }
-
-    /* ===== Update ===== */
-    function update() {
-      if (state !== 'playing') return;
-
-      /* Paddle keyboard */
-      const pSpeed = 7;
-      if (keys['ArrowLeft']  || keys['a'] || keys['A'])
-        paddleX = Math.max(0, paddleX - pSpeed);
-      if (keys['ArrowRight'] || keys['d'] || keys['D'])
-        paddleX = Math.min(BASE_W - PADDLE_W, paddleX + pSpeed);
-
-      /* Ball move */
-      ballX += ballDX;
-      ballY += ballDY;
-
-      /* Wall collisions */
-      if (ballX - BALL_RADIUS < 0)       { ballX = BALL_RADIUS;       ballDX = Math.abs(ballDX); }
-      if (ballX + BALL_RADIUS > BASE_W)  { ballX = BASE_W - BALL_RADIUS; ballDX = -Math.abs(ballDX); }
-      if (ballY - BALL_RADIUS < 0)       { ballY = BALL_RADIUS;       ballDY = Math.abs(ballDY); }
-
-      /* Paddle collision */
-      if (
-        ballY + BALL_RADIUS >= PADDLE_Y &&
-        ballY - BALL_RADIUS <= PADDLE_Y + PADDLE_H &&
-        ballX >= paddleX - BALL_RADIUS &&
-        ballX <= paddleX + PADDLE_W + BALL_RADIUS &&
-        ballDY > 0
-      ) {
-        ballDY = -Math.abs(ballDY);
-        /* Angle based on hit position */
-        const hitPos = (ballX - paddleX) / PADDLE_W; /* 0..1 */
-        const angle  = (hitPos - 0.5) * Math.PI * 0.7;
-        const speed  = Math.sqrt(ballDX * ballDX + ballDY * ballDY);
-        ballDX = Math.sin(angle) * speed;
-        ballDY = -Math.cos(angle) * speed;
-        ballY  = PADDLE_Y - BALL_RADIUS;
+        nav.classList.remove('scrolled');
       }
 
-      /* Block collisions */
-      let blocksLeft = 0;
-      for (const b of blocks) {
-        if (!b.alive) continue;
-        blocksLeft++;
-        if (rectCircleCollide(b.x, b.y, b.w, b.h, ballX, ballY, BALL_RADIUS)) {
-          b.alive = false;
-          blocksLeft--;
-          score += POINTS_PER_BLOCK;
-          resolveBlockCollision(b);
-          createParticles(b.x + b.w / 2, b.y + b.h / 2, b.color);
-          createFloatingText(b.icon + ' ' + b.name, b.x + b.w / 2, b.y + b.h / 2);
-          break; /* one block per frame */
+      // スクロールトップボタンの表示/非表示
+      const scrollTopBtn = document.getElementById('scroll-top');
+      if (window.scrollY > 300) {
+        scrollTopBtn.classList.add('visible');
+      } else {
+        scrollTopBtn.classList.remove('visible');
+      }
+    });
+
+    /* -------------------------------------------------
+       2. ハンバーガーメニュー（スマホ用）
+    ------------------------------------------------- */
+    const hamburger = document.getElementById('hamburger');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    // ハンバーガーボタンをクリックでメニュー開閉
+    hamburger.addEventListener('click', () => {
+      hamburger.classList.toggle('open');
+      mobileMenu.classList.toggle('open');
+    });
+
+    // モバイルメニューのリンクをクリックしたら閉じる
+    document.querySelectorAll('.mobile-link').forEach(link => {
+      link.addEventListener('click', () => {
+        hamburger.classList.remove('open');
+        mobileMenu.classList.remove('open');
+      });
+    });
+
+    /* -------------------------------------------------
+       3. Intersection Observer: 要素がスクロールで見えたらアニメーション
+    ------------------------------------------------- */
+
+    // 商品カード: スタッガーアニメーション（100ms ずつずらして順番に表示）
+    // data-index 属性でカードの DOM 順序を取得し、バッチ内の順序に依存しない
+    document.querySelectorAll('.product-card').forEach((card, idx) => {
+      card.dataset.index = idx;
+    });
+
+    const cardObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          // data-index でカードの順番を取得してディレイを計算する
+          const delay = parseInt(entry.target.dataset.index || '0', 10) * 100;
+          setTimeout(() => {
+            entry.target.classList.add('visible');
+          }, delay); // カードの DOM 順序に基づいて 100ms ずつ遅らせる
+          cardObserver.unobserve(entry.target); // 一度表示したら監視停止
         }
-      }
+      });
+    }, { threshold: 0.1 });
 
-      /* All blocks gone → clear */
-      if (blocksLeft === 0) {
-        state = 'clear';
-        gameRunning = false;
-        showOverlay(
-          'AWS全滅！クリア🎉',
-          `Round ${round} ✦ Score: ${score}`,
-          `▶ Round ${round + 1} へ`,
-          '#FF9900'
-        );
-        return;
-      }
+    document.querySelectorAll('.product-card').forEach(card => {
+      cardObserver.observe(card);
+    });
 
-      /* Ball fell */
-      if (ballY - BALL_RADIUS > BASE_H) {
-        lives--;
-        if (lives <= 0) {
-          state = 'gameover';
-          gameRunning = false;
-          showOverlay('AWSに敗北...😢', `Score: ${score}`, '▶ もう一度', '#DD344C');
-        } else {
-          resetBall();
+    // セクション見出し: 縦線 + テキストのフェードイン
+    const headerObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          headerObserver.unobserve(entry.target);
         }
-      }
+      });
+    }, { threshold: 0.3 });
 
-      /* Particles */
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.12; /* gravity */
-        p.life -= 0.025;
-        p.alpha = p.life;
-        if (p.life <= 0) particles.splice(i, 1);
-      }
+    document.querySelectorAll('.section-header').forEach(header => {
+      headerObserver.observe(header);
+    });
 
-      /* Floating texts */
-      for (let i = floatingTexts.length - 1; i >= 0; i--) {
-        const ft = floatingTexts[i];
-        ft.y    -= 1.2;
-        ft.life -= 0.018;
-        ft.alpha = ft.life;
-        ft.scale = Math.min(1, ft.scale + 0.06);
-        if (ft.life <= 0) floatingTexts.splice(i, 1);
-      }
+    // 特集バナー: テキストが左からスライドイン
+    const featureObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          featureObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.2 });
+
+    const featureInner = document.getElementById('feature-inner');
+    if (featureInner) {
+      featureObserver.observe(featureInner);
     }
 
-    /* ===== Draw helpers ===== */
-    function roundRect(x, y, w, h, r) {
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.lineTo(x + w - r, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-      ctx.lineTo(x + w, y + h - r);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-      ctx.lineTo(x + r, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-      ctx.lineTo(x, y + r);
-      ctx.quadraticCurveTo(x, y, x + r, y);
-      ctx.closePath();
-    }
-
-    /* ===== Draw ===== */
-    function draw() {
-      /* Background */
-      ctx.fillStyle = '#1a1a2e';
-      ctx.fillRect(0, 0, BASE_W, BASE_H);
-
-      /* Grid lines (subtle) */
-      ctx.strokeStyle = '#ffffff08';
-      ctx.lineWidth = 1;
-      for (let x = 0; x < BASE_W; x += 40) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, BASE_H); ctx.stroke();
-      }
-      for (let y = 0; y < BASE_H; y += 40) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(BASE_W, y); ctx.stroke();
-      }
-
-      /* Header bar */
-      ctx.fillStyle = '#0d1117cc';
-      ctx.fillRect(0, 0, BASE_W, 60);
-      ctx.strokeStyle = '#FF990044';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, 60); ctx.lineTo(BASE_W, 60); ctx.stroke();
-
-      /* Score */
-      ctx.fillStyle = '#FF9900';
-      ctx.font = 'bold 18px "Courier New", monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText('SCORE: ' + score, 20, 36);
-
-      /* Round */
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#aaa';
-      ctx.font = '15px "Courier New", monospace';
-      ctx.fillText('ROUND ' + round, BASE_W / 2, 36);
-
-      /* Lives */
-      ctx.textAlign = 'right';
-      ctx.font = '20px serif';
-      let heartsStr = '';
-      for (let i = 0; i < MAX_LIVES; i++) heartsStr += (i < lives) ? '❤️' : '🖤';
-      ctx.fillText(heartsStr, BASE_W - 16, 38);
-
-      /* Blocks */
-      for (const b of blocks) {
-        if (!b.alive) continue;
-
-        /* Shadow */
-        ctx.shadowColor = b.color + '88';
-        ctx.shadowBlur  = 10;
-
-        /* Fill */
-        roundRect(b.x, b.y, b.w, b.h, 8);
-        const grad = ctx.createLinearGradient(b.x, b.y, b.x, b.y + b.h);
-        grad.addColorStop(0, b.color + 'dd');
-        grad.addColorStop(1, b.color + '88');
-        ctx.fillStyle = grad;
-        ctx.fill();
-
-        /* Border */
-        ctx.strokeStyle = '#ffffff33';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        ctx.shadowBlur = 0;
-
-        /* Icon */
-        ctx.font = '18px serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#fff';
-        ctx.fillText(b.icon, b.x + 22, b.y + b.h / 2);
-
-        /* Name */
-        const fontSize = b.name.length > 10 ? 10 : 11;
-        ctx.font = `bold ${fontSize}px "Courier New", monospace`;
-        ctx.fillStyle = '#fff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(b.name, b.x + b.w / 2 + 8, b.y + b.h / 2);
-      }
-      ctx.textBaseline = 'alphabetic';
-
-      /* Paddle */
-      ctx.shadowColor = '#FF990099';
-      ctx.shadowBlur  = 16;
-      roundRect(paddleX, PADDLE_Y, PADDLE_W, PADDLE_H, 6);
-      const pGrad = ctx.createLinearGradient(paddleX, PADDLE_Y, paddleX, PADDLE_Y + PADDLE_H);
-      pGrad.addColorStop(0, '#FFBB33');
-      pGrad.addColorStop(1, '#FF8800');
-      ctx.fillStyle = pGrad;
-      ctx.fill();
-      ctx.strokeStyle = '#fff4';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      /* Ball */
-      ctx.shadowColor = '#ffffffaa';
-      ctx.shadowBlur  = 18;
-      ctx.beginPath();
-      ctx.arc(ballX, ballY, BALL_RADIUS, 0, Math.PI * 2);
-      const bGrad = ctx.createRadialGradient(ballX - 2, ballY - 2, 1, ballX, ballY, BALL_RADIUS);
-      bGrad.addColorStop(0, '#ffffff');
-      bGrad.addColorStop(1, '#cccccc');
-      ctx.fillStyle = bGrad;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      /* Particles */
-      for (const p of particles) {
-        ctx.globalAlpha = Math.max(0, p.alpha);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = p.color;
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-
-      /* Floating texts */
-      for (const ft of floatingTexts) {
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, ft.alpha);
-        ctx.translate(ft.x, ft.y);
-        ctx.scale(ft.scale, ft.scale);
-        ctx.font = 'bold 22px "Courier New", monospace';
-        ctx.textAlign  = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle  = '#fff';
-        ctx.shadowColor = '#000';
-        ctx.shadowBlur  = 8;
-        ctx.fillText(ft.text, 0, 0);
-        ctx.restore();
-      }
-    }
-
-    /* ===== Game loop ===== */
-    function loop() {
-      update();
-      draw();
-      animId = requestAnimationFrame(loop);
-    }
-
-    /* ===== Start ===== */
-    initGame(1);
-
-    /* Run the animation loop */
-    loop();
+    /* -------------------------------------------------
+       4. スクロールトップボタン: クリックでページ先頭へ
+    ------------------------------------------------- */
+    document.getElementById('scroll-top').addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
 
   }());
   </script>
