@@ -168,6 +168,84 @@
     .pick-sector { font-size: .72rem; color: var(--muted); margin-left: auto; }
     .pick-reason { font-size: .86rem; color: #c6cbd3; margin-top: 7px; }
 
+    /* ---- セクション共通カード ---- */
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      margin-top: 26px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.25);
+    }
+    .card h2 {
+      font-size: 1.15rem;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+    .card .lead { color: var(--muted); font-size: .85rem; margin-bottom: 16px; }
+
+    /* ---- 市場切替タブ ---- */
+    .tabs { display: inline-flex; gap: 6px; margin-bottom: 14px; background: var(--panel-2);
+            padding: 4px; border-radius: 999px; border: 1px solid var(--border); }
+    .tab {
+      border: none; cursor: pointer; font: inherit; font-size: .82rem;
+      color: var(--muted); background: transparent; padding: 6px 16px; border-radius: 999px;
+      transition: var(--transition);
+    }
+    .tab.active.jp { background: var(--jp); color: #1a1014; }
+    .tab.active.us { background: var(--us); color: #0c1424; }
+
+    /* ---- 順位推移 バンプチャート ---- */
+    .chart-wrap { overflow-x: auto; }
+    svg.bump { width: 100%; min-width: 520px; height: auto; display: block; }
+    svg.bump text { fill: var(--muted); font-size: 11px; font-family: inherit; }
+    svg.bump .gridline { stroke: var(--border); stroke-width: 1; }
+    svg.bump .serie { fill: none; stroke-width: 2.5; transition: opacity .2s; }
+    svg.bump .dot { transition: opacity .2s; }
+    svg.bump .endlabel { font-size: 11px; font-weight: 700; }
+    svg.bump.has-active .serie:not(.on),
+    svg.bump.has-active .dot:not(.on),
+    svg.bump.has-active .endlabel:not(.on) { opacity: .12; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 14px; }
+    .legend .item {
+      display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+      font-size: .8rem; color: #c6cbd3; padding: 2px 4px; border-radius: 6px;
+    }
+    .legend .item:hover { background: var(--panel-2); }
+    .legend .sw { width: 13px; height: 13px; border-radius: 3px; flex: none; }
+    .legend .rk { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .chart-note { color: var(--muted); font-size: .8rem; margin-top: 10px; }
+
+    /* ---- 各日の概略ナビ ---- */
+    .overview-list { display: grid; gap: 8px; }
+    .ov {
+      display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: baseline;
+      text-decoration: none; color: inherit; padding: 9px 12px; border-radius: 9px;
+      background: var(--panel-2); border: 1px solid var(--border); transition: var(--transition);
+    }
+    .ov:hover { border-color: var(--us); transform: translateX(2px); }
+    .ov .ov-date { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .ov .ov-sum { color: var(--muted); font-size: .84rem; overflow: hidden;
+                  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .ov .ov-top { color: var(--text); font-size: .8rem; }
+    .ov .mini-fb { color: #ffb35c; font-size: .72rem; }
+
+    /* ---- 順位バッジ ---- */
+    .rank {
+      flex: none; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 6px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: .76rem; font-weight: 700; font-variant-numeric: tabular-nums;
+      background: var(--panel); border: 1px solid var(--border); color: var(--muted);
+    }
+    .market.jp .pick .rank { color: var(--jp); border-color: var(--jp); }
+    .market.us .pick .rank { color: var(--us); border-color: var(--us); }
+    .pick .rank.top { color: #1a1014; }
+    .market.jp .pick .rank.top { background: var(--jp); }
+    .market.us .pick .rank.top { background: var(--us); color: #0c1424; }
+
     .state {
       text-align: center;
       color: var(--muted);
@@ -207,12 +285,30 @@
       </div>
     </header>
 
+    <section id="ranking" class="card" hidden>
+      <h2>📈 推奨順位の推移</h2>
+      <div class="lead">最新日 TOP10 銘柄が、過去の各営業日で何位に推奨されていたかの推移です（上が1位）。</div>
+      <div class="tabs" id="rank-tabs">
+        <button class="tab jp active" data-market="japan">🇯🇵 日本株</button>
+        <button class="tab us" data-market="us">🇺🇸 米国株</button>
+      </div>
+      <div class="chart-wrap"><div id="chart"></div></div>
+      <div class="legend" id="legend"></div>
+      <div class="chart-note" id="chart-note"></div>
+    </section>
+
+    <section id="overview" class="card" hidden>
+      <h2>🗓 各日の概略</h2>
+      <div class="lead">日付をクリックするとその日の記録（TOP10と理由）に移動します。</div>
+      <div class="overview-list" id="overview-list"></div>
+    </section>
+
     <main id="entries">
       <div class="state"><div class="spin"></div>記録を読み込んでいます…</div>
     </main>
 
     <footer>
-      自動更新: GitHub Actions（月〜金 08:00 JST） / 生成: Claude API<br />
+      自動更新: GitHub Actions（月〜金 08:00 JST） / 生成: Anthropic Claude API ／ GitHub Models<br />
       <a href="../">← サイトトップへ</a>
     </footer>
   </div>
@@ -234,10 +330,17 @@
       return `${m[1]}.${m[2]}.${m[3]} (${wd})`;
     }
 
-    function renderPick(p, kind) {
+    const COLORS = ["#ff5d6c","#4d8dff","#ffce4f","#4dd4ac","#c77dff","#ff9f43","#5fd0e0","#f78fb3","#9bd35a","#b0a8ff"];
+    const safeId = t => String(t).replace(/[^a-zA-Z0-9]/g, "_");
+    const anchorId = d => "entry-" + String(d).replace(/[^0-9]/g, "");
+    let DATA = [];
+
+    function renderPick(p, i) {
+      const rank = p.rank || i + 1;
       return `
         <div class="pick">
           <div class="pick-top">
+            <span class="rank${rank <= 3 ? " top" : ""}">${rank}</span>
             <span class="ticker">${esc(p.ticker)}</span>
             <span class="pick-name">${esc(p.name)}</span>
             ${p.sector ? `<span class="pick-sector">${esc(p.sector)}</span>` : ""}
@@ -252,16 +355,110 @@
       return e.provider || "";
     }
 
+    /* ---------- 各日の概略 ---------- */
+    function topLine(e, market) {
+      return (e[market] || []).slice(0, 3).map(p => p.ticker).join(" / ");
+    }
+    function buildOverview(entries) {
+      const host = document.getElementById("overview-list");
+      host.innerHTML = entries.map(e => {
+        let s = (e.market_summary || "").trim();
+        return `
+          <a class="ov" href="#${anchorId(e.date)}">
+            <span class="ov-date">${formatDate(e.date)}${e.fallback ? '<br><span class="mini-fb">⚠ FB</span>' : ""}</span>
+            <span>
+              <span class="ov-top">🇯🇵 ${esc(topLine(e, "japan")) || "-"} ｜ 🇺🇸 ${esc(topLine(e, "us")) || "-"}</span>
+              <span class="ov-sum">${esc(s)}</span>
+            </span>
+          </a>`;
+      }).join("");
+    }
+
+    /* ---------- 順位推移 バンプチャート ---------- */
+    function buildChart(entries, market) {
+      const chart = document.getElementById("chart");
+      const legend = document.getElementById("legend");
+      const note = document.getElementById("chart-note");
+
+      const list = entries.slice(0, 10);              // 新しい順、最大10日
+      const dates = list.map(e => e.date).reverse();  // 古→新
+      const byDate = {}; list.forEach(e => (byDate[e.date] = e));
+      const latest = list[0];
+      const tickers = (latest[market] || []).slice(0, 10);
+      const maxRank = 10, n = dates.length;
+
+      if (!tickers.length) { chart.innerHTML = ""; legend.innerHTML = ""; note.textContent = "データがありません。"; return; }
+
+      const W = 720, H = 360, mL = 30, mR = 92, mT = 20, mB = 30;
+      const plotW = W - mL - mR, plotH = H - mT - mB;
+      const x = i => mL + (n <= 1 ? plotW / 2 : (plotW * i) / (n - 1));
+      const y = r => mT + (plotH * (r - 1)) / (maxRank - 1);
+      const rankOf = (date, tk) => {
+        const e = byDate[date]; if (!e) return null;
+        const f = (e[market] || []).find(p => p.ticker === tk); return f ? f.rank : null;
+      };
+
+      let svg = `<svg class="bump" viewBox="0 0 ${W} ${H}" role="img" aria-label="順位推移チャート">`;
+      // 横グリッド＋順位ラベル
+      for (let r = 1; r <= maxRank; r++) {
+        svg += `<line class="gridline" x1="${mL}" y1="${y(r)}" x2="${W - mR}" y2="${y(r)}"/>`;
+        svg += `<text x="${mL - 6}" y="${y(r) + 4}" text-anchor="end">${r}</text>`;
+      }
+      // 日付ラベル
+      dates.forEach((d, i) => {
+        svg += `<text x="${x(i)}" y="${H - 10}" text-anchor="middle">${d.slice(5).replace("-", "/")}</text>`;
+      });
+      // 各銘柄の線・点・端ラベル
+      tickers.forEach((p, ti) => {
+        const color = COLORS[ti % COLORS.length];
+        const k = safeId(p.ticker);
+        const pts = [];
+        dates.forEach((d, i) => { const r = rankOf(d, p.ticker); if (r != null) pts.push([x(i), y(r), r]); });
+        if (pts.length > 1) {
+          const dd = pts.map((pt, j) => (j ? "L" : "M") + pt[0] + " " + pt[1]).join(" ");
+          svg += `<path class="serie" data-k="${k}" d="${dd}" stroke="${color}"/>`;
+        }
+        pts.forEach(pt => { svg += `<circle class="dot" data-k="${k}" cx="${pt[0]}" cy="${pt[1]}" r="3.5" fill="${color}"/>`; });
+        const lr = p.rank;
+        svg += `<text class="endlabel" data-k="${k}" x="${x(n - 1) + 7}" y="${y(lr) + 4}" fill="${color}">${esc(p.ticker)}</text>`;
+      });
+      svg += `</svg>`;
+      chart.innerHTML = svg;
+
+      legend.innerHTML = tickers.map((p, ti) => {
+        const color = COLORS[ti % COLORS.length];
+        return `<span class="item" data-k="${safeId(p.ticker)}">
+            <span class="sw" style="background:${color}"></span>
+            <span class="rk">#${p.rank}</span> ${esc(p.ticker)} <span style="color:var(--muted)">${esc(p.name)}</span>
+          </span>`;
+      }).join("");
+
+      note.textContent = n < 2
+        ? `※ 推移の表示には2営業日以上のデータが必要です（現在 ${n} 日）。`
+        : `直近 ${n} 営業日 / 線が上にあるほど高い推奨順位。凡例にマウスを乗せると強調表示します。`;
+
+      // ハイライト
+      const svgEl = chart.querySelector("svg");
+      const setActive = k => {
+        svgEl.classList.toggle("has-active", !!k);
+        svgEl.querySelectorAll("[data-k]").forEach(el => el.classList.toggle("on", el.getAttribute("data-k") === k));
+      };
+      legend.querySelectorAll(".item").forEach(it => {
+        it.addEventListener("mouseenter", () => setActive(it.getAttribute("data-k")));
+        it.addEventListener("mouseleave", () => setActive(null));
+      });
+    }
+
     function renderEntry(e) {
-      const jp = (e.japan || []).map(p => renderPick(p, "jp")).join("");
-      const us = (e.us || []).map(p => renderPick(p, "us")).join("");
+      const jp = (e.japan || []).map((p, i) => renderPick(p, i)).join("");
+      const us = (e.us || []).map((p, i) => renderPick(p, i)).join("");
       const fallbackNote = e.fallback
         ? `<div class="fallback-note">⚠️ <strong>フォールバック</strong>：Anthropic API が使えなかったため
              <strong>GitHub Models</strong> で生成しました（web検索なし）。
              ${e.fallback_reason ? `理由: <code>${esc(e.fallback_reason)}</code>` : ""}</div>`
         : "";
       return `
-        <article class="entry">
+        <article class="entry" id="${anchorId(e.date)}">
           <div class="entry-head">
             <span class="entry-date">${formatDate(e.date)}</span>
             ${e.sample ? '<span class="badge sample">サンプル</span>' : ""}
@@ -284,6 +481,18 @@
         </article>`;
     }
 
+    let currentMarket = "japan";
+    function setupTabs() {
+      document.querySelectorAll("#rank-tabs .tab").forEach(tab => {
+        tab.addEventListener("click", () => {
+          document.querySelectorAll("#rank-tabs .tab").forEach(t => t.classList.remove("active"));
+          tab.classList.add("active");
+          currentMarket = tab.getAttribute("data-market");
+          buildChart(DATA, currentMarket);
+        });
+      });
+    }
+
     async function load() {
       const el = document.getElementById("entries");
       try {
@@ -294,7 +503,13 @@
           el.innerHTML = '<div class="state">まだ記録がありません。次の営業日 朝8時（JST）に最初の記録が追加されます。</div>';
           return;
         }
+        DATA = entries;
         el.innerHTML = entries.map(renderEntry).join("");
+        buildOverview(entries);
+        buildChart(entries, currentMarket);
+        setupTabs();
+        document.getElementById("ranking").hidden = false;
+        document.getElementById("overview").hidden = false;
       } catch (err) {
         el.innerHTML = '<div class="state">記録を読み込めませんでした（' + esc(err.message) +
           '）。<br />初回の自動更新がまだ実行されていない可能性があります。</div>';

@@ -55,8 +55,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ -n "$(git status --porcelain stock-diary/data)" ]; then
-            git add stock-diary/data
+          if [ -n "$(git status --porcelain stock-diary/data README.md)" ]; then
+            git add stock-diary/data README.md
             git commit -m "chore(stock-diary): update entry for $(TZ=Asia/Tokyo date +%Y-%m-%d)"
             git push
           else
