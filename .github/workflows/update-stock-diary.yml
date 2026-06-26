@@ -12,16 +12,6 @@ on:
         description: "生成対象日 (YYYY-MM-DD)。空ならその日の日付。例: 昨日分を作りたいとき"
         required: false
         type: string
-  # 一度だけの初回生成用ブートストラップ・トリガ。
-  # このフィーチャーブランチで scripts / workflow を更新したときに1回だけ実行され、
-  # 実データを生成して PR に載せる。生成コミットは data/ のみを変更し paths に含まれないため再実行ループは起きない。
-  # main にはこのブランチ名のブランチが存在しないため、マージ後は schedule / workflow_dispatch のみが有効。
-  push:
-    branches: [claude/stock-diary-site-k0h83h]
-    paths:
-      - "scripts/generate_stock_diary.py"
-      - ".github/workflows/update-stock-diary.yml"
-
 # 注意: スケジュール実行はデフォルトブランチ（main）上のワークフローのみ発火する。
 # 定期更新を有効にするには、このワークフローを main にマージしてください。
 
@@ -57,9 +47,8 @@ jobs:
           STOCK_DIARY_MODEL: ${{ vars.STOCK_DIARY_MODEL || 'claude-sonnet-4-6' }}
           STOCK_DIARY_GH_MODEL: ${{ vars.STOCK_DIARY_GH_MODEL || 'openai/gpt-4o-mini' }}
           STOCK_DIARY_WEB_SEARCH: ${{ vars.STOCK_DIARY_WEB_SEARCH || 'true' }}
-          # 手動実行で日付を指定した場合のみ上書き（空ならその日の日付）。
-          # ブートストラップ（push）では昨日分を1回生成する。次のコミットでこの既定値は外す。
-          STOCK_DIARY_DATE: ${{ github.event.inputs.date || '2026-06-26' }}
+          # 手動実行で日付を指定した場合のみ上書き（空ならその日の日付）
+          STOCK_DIARY_DATE: ${{ github.event.inputs.date }}
         run: python scripts/generate_stock_diary.py
 
       - name: Commit and push if changed

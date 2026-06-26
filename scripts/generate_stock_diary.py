@@ -286,7 +286,9 @@ def main() -> int:
     }
 
     entries = [e for e in load_entries() if e.get("date") != date_str and not e.get("sample")]
-    entries.insert(0, entry)
+    entries.append(entry)
+    # 日付の新しい順に並べる（過去日を後から生成しても正しい順序になる）
+    entries.sort(key=lambda e: e.get("date", ""), reverse=True)
     entries = entries[:MAX_ENTRIES]
 
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
