@@ -399,6 +399,13 @@ def render_readme(entries: list) -> None:
         pre = text[: text.index(README_START)]
         post = text[text.index(README_END) + len(README_END) :]
         new_text = pre + block + post
+    elif README_START in text or README_END in text:
+        # 片方のマーカーだけが残っている状態で追記すると、次回実行時に
+        # 手書きの内容を巻き込んで削除する恐れがあるため、安全のため中断する。
+        raise ValueError(
+            f"README.md のマーカーが片方しかありません（{README_START} / {README_END} は"
+            "両方そろっているか、両方無いかのどちらかにしてください）。"
+        )
     else:
         new_text = text.rstrip() + "\n\n" + block + "\n"
     README_FILE.write_text(new_text, encoding="utf-8")
