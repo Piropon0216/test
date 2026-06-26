@@ -12,14 +12,6 @@ on:
         description: "生成対象日 (YYYY-MM-DD)。空ならその日の日付。例: 昨日分を作りたいとき"
         required: false
         type: string
-  # 一度きりのバックフィル用ブートストラップ・トリガ（このフィーチャーブランチ限定）。
-  # script / workflow 更新時に1回だけ走り、過去1週間分の TOP10 実データを生成する。
-  # 生成コミットは data/・README のみ変更し paths 外なので再実行ループは起きない。次のコミットで撤去する。
-  push:
-    branches: [claude/stock-diary-site-k0h83h]
-    paths:
-      - "scripts/generate_stock_diary.py"
-      - ".github/workflows/update-stock-diary.yml"
 # 注意: スケジュール実行はデフォルトブランチ（main）上のワークフローのみ発火する。
 # 定期更新を有効にするには、このワークフローを main にマージしてください。
 
@@ -57,8 +49,6 @@ jobs:
           STOCK_DIARY_WEB_SEARCH: ${{ vars.STOCK_DIARY_WEB_SEARCH || 'true' }}
           # 手動実行で日付を指定した場合のみ上書き（空ならその日の日付）
           STOCK_DIARY_DATE: ${{ github.event.inputs.date }}
-          # 一度きりのバックフィル（過去1週間分の TOP10 実データ）。次のコミットでこの行は撤去する。
-          STOCK_DIARY_DATES: 2026-06-22,2026-06-23,2026-06-24,2026-06-25,2026-06-26,2026-06-27
         run: python scripts/generate_stock_diary.py
 
       - name: Commit and push if changed
