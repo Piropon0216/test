@@ -98,7 +98,25 @@
       color: var(--muted);
     }
     .badge.sample { color: var(--accent); border-color: var(--accent); }
+    .badge.provider { color: var(--us); border-color: var(--us); }
+    .badge.fallback {
+      color: #ffb35c;
+      border-color: #ffb35c;
+      background: rgba(255, 179, 92, .08);
+    }
     .spacer { flex: 1; }
+
+    .fallback-note {
+      background: rgba(255, 179, 92, .08);
+      border: 1px solid #ffb35c;
+      border-left: 3px solid #ffb35c;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: .82rem;
+      color: #ffcf9a;
+      margin-bottom: 16px;
+    }
+    .fallback-note code { font-size: .76rem; color: #ffb35c; word-break: break-all; }
 
     .summary {
       background: var(--panel-2);
@@ -228,18 +246,32 @@
         </div>`;
     }
 
+    function providerLabel(e) {
+      if (e.provider === "github-models") return "GitHub Models";
+      if (e.provider === "anthropic") return "Anthropic";
+      return e.provider || "";
+    }
+
     function renderEntry(e) {
       const jp = (e.japan || []).map(p => renderPick(p, "jp")).join("");
       const us = (e.us || []).map(p => renderPick(p, "us")).join("");
+      const fallbackNote = e.fallback
+        ? `<div class="fallback-note">⚠️ <strong>フォールバック</strong>：Anthropic API が使えなかったため
+             <strong>GitHub Models</strong> で生成しました（web検索なし）。
+             ${e.fallback_reason ? `理由: <code>${esc(e.fallback_reason)}</code>` : ""}</div>`
+        : "";
       return `
         <article class="entry">
           <div class="entry-head">
             <span class="entry-date">${formatDate(e.date)}</span>
             ${e.sample ? '<span class="badge sample">サンプル</span>' : ""}
+            ${e.fallback ? '<span class="badge fallback">⚠ フォールバック</span>' : ""}
             <span class="spacer"></span>
+            ${e.provider ? `<span class="badge provider">${esc(providerLabel(e))}</span>` : ""}
             ${e.model ? `<span class="badge">${esc(e.model)}</span>` : ""}
             ${e.web_search ? '<span class="badge">web検索あり</span>' : ""}
           </div>
+          ${fallbackNote}
           ${e.market_summary ? `<div class="summary">${esc(e.market_summary)}</div>` : ""}
           <div class="market-grid">
             <section class="market jp">

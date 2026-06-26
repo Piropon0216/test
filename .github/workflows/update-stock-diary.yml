@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  models: read # GitHub Models へのフォールバックに必要（GITHUB_TOKEN で認証）
 
 concurrency:
   group: stock-diary
@@ -32,10 +33,15 @@ jobs:
 
       - name: Generate today's stock diary entry
         env:
-          # シークレットはコードに置かず GitHub Secrets から注入する
+          # 1) Anthropic を優先（任意）。未設定なら自動で GitHub Models にフォールバック。
+          #    シークレットはコードに置かず GitHub Secrets から注入する。
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # 2) フォールバック先 = GitHub Models。GITHUB_TOKEN は Actions が自動発行（外部キー不要）。
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # 任意で上書き可能な設定
+          STOCK_DIARY_PROVIDER: ${{ vars.STOCK_DIARY_PROVIDER || 'auto' }}
           STOCK_DIARY_MODEL: ${{ vars.STOCK_DIARY_MODEL || 'claude-sonnet-4-6' }}
+          STOCK_DIARY_GH_MODEL: ${{ vars.STOCK_DIARY_GH_MODEL || 'openai/gpt-4o-mini' }}
           STOCK_DIARY_WEB_SEARCH: ${{ vars.STOCK_DIARY_WEB_SEARCH || 'true' }}
         run: python scripts/generate_stock_diary.py
 

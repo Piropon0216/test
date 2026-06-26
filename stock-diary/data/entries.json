@@ -2,8 +2,11 @@
   {
     "date": "2026-06-26",
     "sample": true,
+    "provider": "anthropic",
     "model": "claude-sonnet-4-6",
-    "web_search": false,
+    "web_search": true,
+    "fallback": false,
+    "fallback_reason": "",
     "market_summary": "これはサイトの表示確認用のサンプル記録です。実際の記録は GitHub Actions が毎営業日 朝8時（JST）に、その日の経済ニュースをもとに自動生成します。以下の銘柄・理由はサンプルであり、投資助言ではありません。",
     "japan": [
       {
@@ -43,6 +46,57 @@
         "name": "JPMorgan Chase",
         "sector": "金融",
         "reason": "（サンプル）金利環境次第で純金利収入が変動。景気後退懸念が和らげば金融株全体に追い風となりやすい。"
+      }
+    ],
+    "disclaimer": "本記録は LLM（大規模言語モデル）の知識・推測に基づく日記であり、投資助言ではありません。投資は自己責任で行ってください。"
+  },
+  {
+    "date": "2026-06-25",
+    "sample": true,
+    "provider": "github-models",
+    "model": "openai/gpt-4o-mini",
+    "web_search": false,
+    "fallback": true,
+    "fallback_reason": "RuntimeError: ANTHROPIC_API_KEY が未設定です。",
+    "market_summary": "これはフォールバック表示の確認用サンプルです。Anthropic API が使えない場合、自動的に GitHub Models（GITHUB_TOKEN 認証・外部キー不要）で生成し、このように「フォールバック」と明示されます。web検索は使わず、LLMの知識ベースで生成されます。",
+    "japan": [
+      {
+        "ticker": "6758",
+        "name": "ソニーグループ",
+        "sector": "電機・エンタメ",
+        "reason": "（サンプル/フォールバック）ゲーム・イメージセンサー・音楽など事業分散が効きやすい。為替や半導体市況の影響には注意。"
+      },
+      {
+        "ticker": "9433",
+        "name": "KDDI",
+        "sector": "通信",
+        "reason": "（サンプル/フォールバック）通信は景気変動の影響を受けにくくディフェンシブ。成長性は限定的な点に留意。"
+      },
+      {
+        "ticker": "8306",
+        "name": "三菱UFJフィナンシャル・グループ",
+        "sector": "金融",
+        "reason": "（サンプル/フォールバック）金利上昇局面では利ざや改善が期待されやすい。景気後退や信用コストはリスク。"
+      }
+    ],
+    "us": [
+      {
+        "ticker": "AAPL",
+        "name": "Apple",
+        "sector": "ハードウェア／サービス",
+        "reason": "（サンプル/フォールバック）サービス収益の比率上昇とブランド力が強み。スマホ需要の鈍化や規制はリスク。"
+      },
+      {
+        "ticker": "GOOGL",
+        "name": "Alphabet",
+        "sector": "広告／クラウド／AI",
+        "reason": "（サンプル/フォールバック）検索広告とクラウドの両輪に加え、AI実装が進む。広告市況と規制動向に注意。"
+      },
+      {
+        "ticker": "XOM",
+        "name": "Exxon Mobil",
+        "sector": "エネルギー",
+        "reason": "（サンプル/フォールバック）原油価格次第でキャッシュフローが変動。地政学リスクのヘッジになり得る一方、価格下落はリスク。"
       }
     ],
     "disclaimer": "本記録は LLM（大規模言語モデル）の知識・推測に基づく日記であり、投資助言ではありません。投資は自己責任で行ってください。"
