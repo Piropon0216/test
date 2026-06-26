@@ -253,7 +253,16 @@ def generate(date_str: str) -> dict:
 
 def main() -> int:
     now = datetime.now(JST)
-    date_str = now.strftime("%Y-%m-%d")
+    # STOCK_DIARY_DATE=YYYY-MM-DD を指定すると、その日付で生成する（手動実行・過去日用）
+    override = os.environ.get("STOCK_DIARY_DATE", "").strip()
+    if override:
+        try:
+            datetime.strptime(override, "%Y-%m-%d")
+        except ValueError:
+            raise SystemExit(f"STOCK_DIARY_DATE は YYYY-MM-DD 形式で指定してください: {override!r}")
+        date_str = override
+    else:
+        date_str = now.strftime("%Y-%m-%d")
     print(f"[stock-diary] date={date_str} provider_pref={os.environ.get('STOCK_DIARY_PROVIDER', 'auto')}")
 
     result = generate(date_str)
