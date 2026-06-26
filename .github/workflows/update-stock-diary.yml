@@ -1,0 +1,58 @@
+name: Update Stock Diary
+
+# 月〜金の朝8時（日本時間 JST）に1日1回実行する。
+# GitHub Actions の cron は UTC のため、08:00 JST = 前日 23:00 UTC。
+# よって UTC では日曜〜木曜(0-4)の 23:00 を指定する → JST 月〜金 08:00。
+on:
+  schedule:
+    - cron: "0 23 * * 0-4"
+  workflow_dispatch: # 手動実行（テスト用）
+
+# 注意: スケジュール実行はデフォルトブランチ（main）上のワークフローのみ発火する。
+# 定期更新を有効にするには、このワークフローを main にマージしてください。
+
+permissions:
+  contents: write
+  models: read # GitHub Models へのフォールバックに必要（GITHUB_TOKEN で認証）
+
+concurrency:
+  group: stock-diary
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate today's stock diary entry
+        env:
+          # 1) Anthropic を優先（任意）。未設定なら自動で GitHub Models にフォールバック。
+          #    シークレットはコードに置かず GitHub Secrets から注入する。
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # 2) フォールバック先 = GitHub Models。GITHUB_TOKEN は Actions が自動発行（外部キー不要）。
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 任意で上書き可能な設定
+          STOCK_DIARY_PROVIDER: ${{ vars.STOCK_DIARY_PROVIDER || 'auto' }}
+          STOCK_DIARY_MODEL: ${{ vars.STOCK_DIARY_MODEL || 'claude-sonnet-4-6' }}
+          STOCK_DIARY_GH_MODEL: ${{ vars.STOCK_DIARY_GH_MODEL || 'openai/gpt-4o-mini' }}
+          STOCK_DIARY_WEB_SEARCH: ${{ vars.STOCK_DIARY_WEB_SEARCH || 'true' }}
+        run: python scripts/generate_stock_diary.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain stock-diary/data)" ]; then
+            git add stock-diary/data
+            git commit -m "chore(stock-diary): update entry for $(TZ=Asia/Tokyo date +%Y-%m-%d)"
+            git push
+          else
+            echo "変更なし。コミットをスキップします。"
+          fi
