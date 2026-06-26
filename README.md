@@ -16,6 +16,10 @@
 
 > ⚠️ 本日記は LLM の知識・推測に基づく記録であり、投資助言ではありません。
 
+<!-- STOCK-DIARY:START -->
+<!-- このブロックは scripts/generate_stock_diary.py が自動更新します（手で編集しないでください）。 -->
+<!-- STOCK-DIARY:END -->
+
 ## その他のページ
 
 | ページ | 内容 |

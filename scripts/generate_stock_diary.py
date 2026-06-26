@@ -38,9 +38,16 @@ JST = timezone(timedelta(hours=9))
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_FILE = ROOT / "stock-diary" / "data" / "entries.json"
+README_FILE = ROOT / "README.md"
+
+# README 内の自動生成ブロックの目印
+README_START = "<!-- STOCK-DIARY:START -->"
+README_END = "<!-- STOCK-DIARY:END -->"
 
 # 1ファイルが肥大化しないよう、保持する最大エントリ数
 MAX_ENTRIES = 400
+# 推移テーブル/サイトに使う直近日数
+RECENT_DAYS = 10
 
 
 def build_prompt(date_str: str, web_search: bool) -> str:
@@ -61,8 +68,8 @@ def build_prompt(date_str: str, web_search: bool) -> str:
 
 # タスク
 {step1}
-2. {context}「今、推奨しそうな株式銘柄」を、日本株から3銘柄、米国株から3銘柄、
-   それぞれ選んでください。
+2. {context}「今、推奨しそうな株式銘柄」を、日本株から10銘柄、米国株から10銘柄、
+   **推奨したい度合いが高い順にランキング**して選んでください（rank=1 が最も推奨）。
 3. それぞれについて、なぜ推奨するのかの理由を、当日のニュースや背景と結び付けて
    日本語で具体的に説明してください。
 
@@ -72,16 +79,16 @@ def build_prompt(date_str: str, web_search: bool) -> str:
 {{
   "market_summary": "本日の経済ニュース・相場概況を3〜5文の日本語で要約",
   "japan": [
-    {{"ticker": "証券コード（例: 7203）", "name": "銘柄名", "sector": "業種", "reason": "推奨理由（具体的に2〜4文）"}}
+    {{"rank": 1, "ticker": "証券コード（例: 7203）", "name": "銘柄名", "sector": "業種", "reason": "推奨理由（具体的に2〜4文）"}}
   ],
   "us": [
-    {{"ticker": "ティッカー（例: NVDA）", "name": "銘柄名", "sector": "業種", "reason": "推奨理由（具体的に2〜4文）"}}
+    {{"rank": 1, "ticker": "ティッカー（例: NVDA）", "name": "銘柄名", "sector": "業種", "reason": "推奨理由（具体的に2〜4文）"}}
   ]
 }}
 ```
 
 # 注意
-- japan は3件、us は3件にしてください。
+- japan は10件、us は10件にし、rank は 1〜10 を重複なく付けてください（rank=1 が最も推奨）。
 - reason は経済環境の文脈を反映させ、一般論で終わらせないでください。
 - これは投資助言ではなく、LLM の知識に基づく記録です。断定を避け、リスクにも触れてください。
 """
@@ -171,11 +178,16 @@ def extract_json(text: str) -> dict:
 
 def normalize_picks(items, kind: str) -> list:
     out = []
-    for it in items or []:
+    for idx, it in enumerate(items or []):
         if not isinstance(it, dict):
             continue
+        try:
+            rank = int(it.get("rank", idx + 1))
+        except (TypeError, ValueError):
+            rank = idx + 1
         out.append(
             {
+                "rank": rank,
                 "ticker": str(it.get("ticker", "")).strip(),
                 "name": str(it.get("name", "")).strip(),
                 "sector": str(it.get("sector", "")).strip(),
@@ -184,7 +196,11 @@ def normalize_picks(items, kind: str) -> list:
         )
     if not out:
         raise ValueError(f"{kind} の銘柄が空でした。")
-    return out
+    # rank 順に整列し、1..N で振り直してから上位10件に絞る
+    out.sort(key=lambda p: p["rank"])
+    for i, p in enumerate(out):
+        p["rank"] = i + 1
+    return out[:10]
 
 
 def load_entries() -> list:
@@ -251,24 +267,11 @@ def generate(date_str: str) -> dict:
     }
 
 
-def main() -> int:
-    now = datetime.now(JST)
-    # STOCK_DIARY_DATE=YYYY-MM-DD を指定すると、その日付で生成する（手動実行・過去日用）
-    override = os.environ.get("STOCK_DIARY_DATE", "").strip()
-    if override:
-        try:
-            datetime.strptime(override, "%Y-%m-%d")
-        except ValueError:
-            raise SystemExit(f"STOCK_DIARY_DATE は YYYY-MM-DD 形式で指定してください: {override!r}")
-        date_str = override
-    else:
-        date_str = now.strftime("%Y-%m-%d")
-    print(f"[stock-diary] date={date_str} provider_pref={os.environ.get('STOCK_DIARY_PROVIDER', 'auto')}")
-
+def build_entry(date_str: str, now: datetime) -> dict:
+    """指定日のエントリを1件生成する。"""
     result = generate(date_str)
     data = result["data"]
-
-    entry = {
+    return {
         "date": date_str,
         "generated_at": now.isoformat(),
         "provider": result["provider"],
@@ -285,21 +288,157 @@ def main() -> int:
         ),
     }
 
-    entries = [e for e in load_entries() if e.get("date") != date_str and not e.get("sample")]
-    entries.append(entry)
-    # 日付の新しい順に並べる（過去日を後から生成しても正しい順序になる）
-    entries.sort(key=lambda e: e.get("date", ""), reverse=True)
-    entries = entries[:MAX_ENTRIES]
+
+def target_dates(now: datetime) -> list:
+    """生成対象日のリストを決める。
+
+    - STOCK_DIARY_DATES（カンマ区切り）が最優先＝バックフィル用
+    - STOCK_DIARY_DATE（単一）
+    - どちらも無ければその日の日付
+    """
+    multi = os.environ.get("STOCK_DIARY_DATES", "").strip()
+    single = os.environ.get("STOCK_DIARY_DATE", "").strip()
+    if multi:
+        raw = [d.strip() for d in multi.split(",") if d.strip()]
+    elif single:
+        raw = [single]
+    else:
+        raw = [now.strftime("%Y-%m-%d")]
+    for d in raw:
+        try:
+            datetime.strptime(d, "%Y-%m-%d")
+        except ValueError:
+            raise SystemExit(f"日付は YYYY-MM-DD 形式で指定してください: {d!r}")
+    return raw
+
+
+def _rank_table_rows(entries: list, market: str, recent: list) -> list:
+    """recent（古→新の日付リスト）に対し、最新日 TOP10 銘柄の順位推移行を作る。
+
+    戻り値: [{"ticker","name","ranks": {date: rank}}], 最新日 rank 順。
+    """
+    by_date = {e["date"]: e for e in entries}
+    latest = by_date.get(recent[-1], {})
+    rows = []
+    for p in latest.get(market, []):
+        ranks = {}
+        for d in recent:
+            for q in by_date.get(d, {}).get(market, []):
+                if q["ticker"] == p["ticker"]:
+                    ranks[d] = q["rank"]
+                    break
+        rows.append({"ticker": p["ticker"], "name": p["name"], "ranks": ranks})
+    return rows
+
+
+def _md_market_table(entry: dict, market: str, label: str, code_label: str) -> str:
+    lines = [f"### {label} TOP10", "", f"| 順位 | {code_label} | 銘柄 | 業種 |", "| ---: | --- | --- | --- |"]
+    for p in entry.get(market, []):
+        lines.append(f"| {p['rank']} | {p['ticker']} | {p['name']} | {p.get('sector','')} |")
+    return "\n".join(lines)
+
+
+def _md_transition_table(entries: list, market: str, label: str, recent: list) -> str:
+    rows = _rank_table_rows(entries, market, recent)
+    header = "| 銘柄 | " + " | ".join(d[5:] for d in recent) + " |"
+    sep = "| --- | " + " | ".join("---:" for _ in recent) + " |"
+    lines = [f"### {label}", "", header, sep]
+    for r in rows:
+        cells = " | ".join(str(r["ranks"].get(d, "-")) for d in recent)
+        lines.append(f"| {r['ticker']} {r['name']} | {cells} |")
+    return "\n".join(lines)
+
+
+def render_readme(entries: list) -> None:
+    """README.md の自動生成ブロックを最新データで置き換える。"""
+    if not entries or not README_FILE.exists():
+        return
+    latest = entries[0]
+    recent = [e["date"] for e in entries[:RECENT_DAYS]][::-1]  # 古→新
+
+    parts = [
+        README_START,
+        "",
+        f"## 📊 最新の推奨ランキング（{latest['date']}）",
+        "",
+        f"> {latest.get('market_summary','')}",
+        "",
+        _md_market_table(latest, "japan", "🇯🇵 日本株", "コード"),
+        "",
+        _md_market_table(latest, "us", "🇺🇸 米国株", "ティッカー"),
+        "",
+        "## 📈 順位の推移（直近）",
+        "",
+        "数字はその日の推奨順位（1 が最上位、`-` はランク外）。最新日 TOP10 銘柄の推移です。",
+        "",
+        _md_transition_table(entries, "japan", "🇯🇵 日本株", recent),
+        "",
+        _md_transition_table(entries, "us", "🇺🇸 米国株", recent),
+        "",
+        "## 🗓 各日の概略",
+        "",
+    ]
+    for e in entries[:RECENT_DAYS]:
+        summary = (e.get("market_summary", "") or "").replace("\n", " ")
+        if len(summary) > 90:
+            summary = summary[:90] + "…"
+        flag = " ⚠️フォールバック" if e.get("fallback") else ""
+        parts.append(f"- **{e['date']}**{flag}: {summary}")
+    parts += [
+        "",
+        "> 🔗 インタラクティブな順位推移グラフは "
+        "[日記サイト](https://piropon0216.github.io/test/stock-diary/) を参照。",
+        "> ⚠️ 本ランキングは LLM の知識・推測に基づく記録であり、投資助言ではありません。",
+        "",
+        README_END,
+    ]
+    block = "\n".join(parts)
+
+    text = README_FILE.read_text(encoding="utf-8")
+    if README_START in text and README_END in text:
+        pre = text[: text.index(README_START)]
+        post = text[text.index(README_END) + len(README_END) :]
+        new_text = pre + block + post
+    else:
+        new_text = text.rstrip() + "\n\n" + block + "\n"
+    README_FILE.write_text(new_text, encoding="utf-8")
+    print(f"[stock-diary] README 更新: 最新 {latest['date']}, 推移 {len(recent)} 日分")
+
+
+def main() -> int:
+    now = datetime.now(JST)
+    dates = target_dates(now)
+    print(f"[stock-diary] dates={dates} provider_pref={os.environ.get('STOCK_DIARY_PROVIDER', 'auto')}")
+
+    entries = [e for e in load_entries() if not e.get("sample")]
+    by_date = {e["date"]: e for e in entries}
+
+    generated, failed = 0, []
+    for date_str in dates:
+        try:
+            entry = build_entry(date_str, now)
+        except Exception as e:  # noqa: BLE001 - 1日失敗しても他の日は続行（バックフィル耐性）
+            print(f"[stock-diary] {date_str} 生成失敗: {type(e).__name__}: {e}", file=sys.stderr)
+            failed.append(date_str)
+            continue
+        by_date[date_str] = entry
+        generated += 1
+        print(
+            f"[stock-diary] {date_str} OK provider={entry['provider']} "
+            f"fallback={entry['fallback']} jp={len(entry['japan'])} us={len(entry['us'])}"
+        )
+
+    if generated == 0:
+        raise SystemExit(f"全日付の生成に失敗しました: {failed}")
+
+    entries = sorted(by_date.values(), key=lambda e: e.get("date", ""), reverse=True)[:MAX_ENTRIES]
 
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
     DATA_FILE.write_text(
         json.dumps(entries, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-    print(
-        f"[stock-diary] 書き込み完了: provider={entry['provider']} "
-        f"fallback={entry['fallback']} japan={len(entry['japan'])} us={len(entry['us'])} "
-        f"total={len(entries)}"
-    )
+    render_readme(entries)
+    print(f"[stock-diary] 完了: 生成 {generated} 件, 失敗 {failed}, 総数 {len(entries)}")
     return 0
 
 

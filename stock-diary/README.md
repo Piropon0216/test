@@ -100,7 +100,8 @@ GitHub Actions の**スケジュール実行はデフォルトブランチ（`ma
 
 ## データ形式（`data/entries.json`）
 
-新しい順のエントリ配列。各エントリは以下の構造です。
+新しい順のエントリ配列。各エントリは以下の構造です。`japan` / `us` はそれぞれ
+**推奨順位（`rank` 1〜10）付きの TOP10** で、`rank` の小さい順に並びます。
 
 ```json
 {
@@ -112,8 +113,13 @@ GitHub Actions の**スケジュール実行はデフォルトブランチ（`ma
   "fallback": false,
   "fallback_reason": "",
   "market_summary": "本日の相場概況…",
-  "japan": [{ "ticker": "7203", "name": "トヨタ自動車", "sector": "自動車", "reason": "…" }],
-  "us": [{ "ticker": "NVDA", "name": "NVIDIA", "sector": "半導体", "reason": "…" }],
+  "japan": [{ "rank": 1, "ticker": "7203", "name": "トヨタ自動車", "sector": "自動車", "reason": "…" }],
+  "us": [{ "rank": 1, "ticker": "NVDA", "name": "NVIDIA", "sector": "半導体", "reason": "…" }],
   "disclaimer": "…"
 }
 ```
+
+サイトのトップには、この TOP10 を使った **推奨順位の推移（バンプチャート）** と
+**各日の概略** が表示されます。また毎回の実行で **リポジトリ直下の `README.md`** の
+ランキング・推移・概略ブロック（`<!-- STOCK-DIARY:START -->` 〜 `END`）も自動更新されます。
+過去日のバックフィルは `STOCK_DIARY_DATES`（カンマ区切り）で複数日まとめて生成できます。
