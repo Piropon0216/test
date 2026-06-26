@@ -57,8 +57,9 @@ jobs:
           STOCK_DIARY_MODEL: ${{ vars.STOCK_DIARY_MODEL || 'claude-sonnet-4-6' }}
           STOCK_DIARY_GH_MODEL: ${{ vars.STOCK_DIARY_GH_MODEL || 'openai/gpt-4o-mini' }}
           STOCK_DIARY_WEB_SEARCH: ${{ vars.STOCK_DIARY_WEB_SEARCH || 'true' }}
-          # 手動実行で日付を指定した場合のみ上書き（空ならその日の日付）
-          STOCK_DIARY_DATE: ${{ github.event.inputs.date }}
+          # 手動実行で日付を指定した場合のみ上書き（空ならその日の日付）。
+          # ブートストラップ（push）では昨日分を1回生成する。次のコミットでこの既定値は外す。
+          STOCK_DIARY_DATE: ${{ github.event.inputs.date || '2026-06-26' }}
         run: python scripts/generate_stock_diary.py
 
       - name: Commit and push if changed
