@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM 株式銘柄 日記 📈</title>
+  <meta name="description" content="本日の経済ニュースをもとに、LLM が推奨しそうな日本株・米国株を理由とともに毎営業日記録する日記サイト" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --panel-2: #1e222b;
+      --text: #e8eaed;
+      --muted: #9aa0ab;
+      --border: #2a2f3a;
+      --jp: #ff5d6c;
+      --us: #4d8dff;
+      --accent: #ffce4f;
+      --radius: 14px;
+      --transition: .25s ease;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Noto Sans JP", system-ui, sans-serif;
+      background: radial-gradient(1200px 600px at 80% -10%, #1c2330 0%, var(--bg) 55%);
+      color: var(--text);
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    .wrap { max-width: 920px; margin: 0 auto; padding: 0 20px 80px; }
+
+    header.hero {
+      text-align: center;
+      padding: 64px 20px 40px;
+    }
+    .hero .eyebrow {
+      letter-spacing: .25em;
+      font-size: .72rem;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+    .hero h1 {
+      font-family: "Playfair Display", serif;
+      font-size: clamp(1.9rem, 5vw, 3rem);
+      margin: 10px 0 14px;
+      line-height: 1.2;
+    }
+    .hero p { color: var(--muted); max-width: 640px; margin: 0 auto; font-size: .95rem; }
+
+    .disclaimer {
+      max-width: 760px;
+      margin: 22px auto 0;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: .82rem;
+      color: var(--muted);
+      text-align: left;
+    }
+
+    .entry {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 26px 26px 22px;
+      margin-top: 26px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.25);
+    }
+    .entry-head {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+    }
+    .entry-date {
+      font-family: "Playfair Display", serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    .badge {
+      font-size: .68rem;
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .badge.sample { color: var(--accent); border-color: var(--accent); }
+    .spacer { flex: 1; }
+
+    .summary {
+      background: var(--panel-2);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: .92rem;
+      color: #d4d8df;
+      margin-bottom: 20px;
+    }
+
+    .market-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 680px) { .market-grid { grid-template-columns: 1fr; } }
+
+    .market h3 {
+      font-size: .8rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .market.jp h3 { color: var(--jp); }
+    .market.us h3 { color: var(--us); }
+    .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+    .market.jp .dot { background: var(--jp); }
+    .market.us .dot { background: var(--us); }
+
+    .pick {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 15px;
+      margin-bottom: 11px;
+      transition: transform var(--transition), border-color var(--transition);
+    }
+    .pick:hover { transform: translateY(-2px); }
+    .market.jp .pick:hover { border-color: var(--jp); }
+    .market.us .pick:hover { border-color: var(--us); }
+    .pick-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .ticker {
+      font-weight: 700;
+      font-size: 1.02rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .market.jp .ticker { color: var(--jp); }
+    .market.us .ticker { color: var(--us); }
+    .pick-name { font-weight: 500; }
+    .pick-sector { font-size: .72rem; color: var(--muted); margin-left: auto; }
+    .pick-reason { font-size: .86rem; color: #c6cbd3; margin-top: 7px; }
+
+    .state {
+      text-align: center;
+      color: var(--muted);
+      padding: 60px 20px;
+      font-size: .95rem;
+    }
+    .state .spin {
+      width: 26px; height: 26px; margin: 0 auto 14px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: .78rem;
+      margin-top: 50px;
+      line-height: 2;
+    }
+    footer a { color: var(--us); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div class="eyebrow">Daily LLM Stock Diary</div>
+      <h1>LLM 株式銘柄 日記 📈</h1>
+      <p>本日の経済ニュースをもとに、LLM（大規模言語モデル）が推奨しそうな
+         <strong>日本株</strong>・<strong>米国株</strong>を理由とともに、毎営業日（月〜金 朝8時 JST）に記録します。</p>
+      <div class="disclaimer">
+        ⚠️ <strong>免責事項</strong>：本サイトの内容は LLM の知識・推測に基づく「日記」であり、
+        投資助言ではありません。銘柄選定の根拠は不正確・古い場合があります。
+        投資判断はご自身の責任で、最新の一次情報をご確認のうえ行ってください。
+      </div>
+    </header>
+
+    <main id="entries">
+      <div class="state"><div class="spin"></div>記録を読み込んでいます…</div>
+    </main>
+
+    <footer>
+      自動更新: GitHub Actions（月〜金 08:00 JST） / 生成: Claude API<br />
+      <a href="../">← サイトトップへ</a>
+    </footer>
+  </div>
+
+  <script>
+    const DATA_URL = "data/entries.json";
+
+    function esc(s) {
+      return String(s ?? "").replace(/[&<>"']/g, c => (
+        { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+      ));
+    }
+
+    function formatDate(iso) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+      if (!m) return esc(iso);
+      const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      const wd = "日月火水木金土"[d.getDay()];
+      return `${m[1]}.${m[2]}.${m[3]} (${wd})`;
+    }
+
+    function renderPick(p, kind) {
+      return `
+        <div class="pick">
+          <div class="pick-top">
+            <span class="ticker">${esc(p.ticker)}</span>
+            <span class="pick-name">${esc(p.name)}</span>
+            ${p.sector ? `<span class="pick-sector">${esc(p.sector)}</span>` : ""}
+          </div>
+          <div class="pick-reason">${esc(p.reason)}</div>
+        </div>`;
+    }
+
+    function renderEntry(e) {
+      const jp = (e.japan || []).map(p => renderPick(p, "jp")).join("");
+      const us = (e.us || []).map(p => renderPick(p, "us")).join("");
+      return `
+        <article class="entry">
+          <div class="entry-head">
+            <span class="entry-date">${formatDate(e.date)}</span>
+            ${e.sample ? '<span class="badge sample">サンプル</span>' : ""}
+            <span class="spacer"></span>
+            ${e.model ? `<span class="badge">${esc(e.model)}</span>` : ""}
+            ${e.web_search ? '<span class="badge">web検索あり</span>' : ""}
+          </div>
+          ${e.market_summary ? `<div class="summary">${esc(e.market_summary)}</div>` : ""}
+          <div class="market-grid">
+            <section class="market jp">
+              <h3><span class="dot"></span>日本株</h3>${jp}
+            </section>
+            <section class="market us">
+              <h3><span class="dot"></span>米国株</h3>${us}
+            </section>
+          </div>
+        </article>`;
+    }
+
+    async function load() {
+      const el = document.getElementById("entries");
+      try {
+        const res = await fetch(DATA_URL, { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const entries = await res.json();
+        if (!Array.isArray(entries) || entries.length === 0) {
+          el.innerHTML = '<div class="state">まだ記録がありません。次の営業日 朝8時（JST）に最初の記録が追加されます。</div>';
+          return;
+        }
+        el.innerHTML = entries.map(renderEntry).join("");
+      } catch (err) {
+        el.innerHTML = '<div class="state">記録を読み込めませんでした（' + esc(err.message) +
+          '）。<br />初回の自動更新がまだ実行されていない可能性があります。</div>';
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>
