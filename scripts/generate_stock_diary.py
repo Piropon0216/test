@@ -253,7 +253,16 @@ def generate(date_str: str) -> dict:
 
 def main() -> int:
     now = datetime.now(JST)
-    date_str = now.strftime("%Y-%m-%d")
+    # STOCK_DIARY_DATE=YYYY-MM-DD を指定すると、その日付で生成する（手動実行・過去日用）
+    override = os.environ.get("STOCK_DIARY_DATE", "").strip()
+    if override:
+        try:
+            datetime.strptime(override, "%Y-%m-%d")
+        except ValueError:
+            raise SystemExit(f"STOCK_DIARY_DATE は YYYY-MM-DD 形式で指定してください: {override!r}")
+        date_str = override
+    else:
+        date_str = now.strftime("%Y-%m-%d")
     print(f"[stock-diary] date={date_str} provider_pref={os.environ.get('STOCK_DIARY_PROVIDER', 'auto')}")
 
     result = generate(date_str)
@@ -277,7 +286,9 @@ def main() -> int:
     }
 
     entries = [e for e in load_entries() if e.get("date") != date_str and not e.get("sample")]
-    entries.insert(0, entry)
+    entries.append(entry)
+    # 日付の新しい順に並べる（過去日を後から生成しても正しい順序になる）
+    entries.sort(key=lambda e: e.get("date", ""), reverse=True)
     entries = entries[:MAX_ENTRIES]
 
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
