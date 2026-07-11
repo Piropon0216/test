@@ -29,11 +29,27 @@ function buildSystemPrompt(monsterName, stageName, level) {
   return `あなたは習慣化育成ゲームに登場するモンスター「${monsterName}」(進化段階: ${stageName}、Lv.${level})です。ユーザーの習慣づけを励ます、優しく短い口調で1〜2文程度で返答してください。`;
 }
 
+// Anthropic Messages APIはuser/assistantの厳密な交互反復を要求する。
+// クライアント側でリクエストが失敗すると応答なしのuserターンが残り、次送信時に
+// user,userが連続してしまうことがあるため、同role連続分を結合して防御する。
+function toAlternatingRoles(messages) {
+  const merged = [];
+  for (const msg of messages) {
+    const last = merged[merged.length - 1];
+    if (last && last.role === msg.role) {
+      last.content += `\n${msg.content}`;
+    } else {
+      merged.push({ role: msg.role, content: msg.content });
+    }
+  }
+  return merged;
+}
+
 async function callAnthropic(apiKey, system, messages) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
-      "content-type": "application/json",
+      "Content-Type": "application/json",
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
     },
@@ -41,7 +57,7 @@ async function callAnthropic(apiKey, system, messages) {
       model: "claude-haiku-4-5-20251001",
       max_tokens: 200,
       system,
-      messages,
+      messages: toAlternatingRoles(messages),
     }),
   });
   if (!res.ok) {
@@ -55,8 +71,8 @@ async function callGithubModels(token, system, messages) {
   const res = await fetch(GITHUB_MODELS_URL, {
     method: "POST",
     headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
       model: GITHUB_MODEL,
