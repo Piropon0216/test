@@ -29,15 +29,22 @@ npm run preview  # ビルド結果をローカル確認
 
 ## おしゃべり機能(ChatPanel)について
 
-モンスターに話しかけるチャット機能は、`api/chat.js`(Vercelサーバーレス関数)を
-経由してAnthropic APIを呼び出します。利用するには:
+モンスターに話しかけるチャット機能は、`api/chat.js`(Vercelサーバーレス関数)経由でLLMを呼びます。
+`stock-diary/`と同じ考え方で、プロバイダは2段階のフォールバックです。
 
-1. Vercel等にデプロイ
-2. 環境変数 `ANTHROPIC_API_KEY` をサーバー側にのみ設定
+1. 環境変数 `ANTHROPIC_API_KEY` があればAnthropicを優先使用
+2. なければ `GITHUB_TOKEN`(`models: read`権限のPersonal Access Token)でGitHub Modelsにフォールバック
+   (無料だがアカウントプランに応じたレート制限あり。GitHub Actions内の自動発行`GITHUB_TOKEN`と違い、
+   Vercel等では自分でPATを発行して環境変数に設定する必要がある)
 
-`ANTHROPIC_API_KEY` が未設定の環境(例: GitHub Pagesなど静的ホスティングのみの環境)では、
+どちらも未設定の環境(例: GitHub Pagesなど静的ホスティングのみの環境)では、
 チャット機能は「いまはお話しできないみたい…」という表示にフォールバックし、
 それ以外の習慣トラッキング・育成機能には影響しません。
+
+**⚠️ このリポジトリはパブリックです。** `ANTHROPIC_API_KEY` / `GITHUB_TOKEN` などのトークンは
+絶対にコード・コミット・`.env`ファイルにベタ書きしてコミットしないこと。必ずVercelなど
+デプロイ先のプラットフォームの環境変数/シークレット管理機能から設定してください
+(`.gitignore`で`.env`系は既に除外済みですが、念のため`git status`で意図せず含まれていないか確認を)。
 
 ## 詳細・引き継ぎ事項
 
