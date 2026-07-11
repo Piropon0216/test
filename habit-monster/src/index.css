@@ -1,0 +1,62 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&family=Zen+Maru+Gothic:wght@500;700&display=swap");
+
+:root {
+  --bg: #fef6ec;
+  --card: #ffffff;
+  --ink: #3a2e2c;
+  --ink-soft: #7a6a63;
+  --accent: #ff8fa3;
+  --accent-strong: #ff5d7a;
+  --accent-soft: #ffe1e8;
+  --leaf: #8bc98a;
+  --sky: #7fc7e0;
+  --gold: #f5b942;
+  --ring-track: #f1e3d3;
+  --shadow: 0 8px 24px rgba(58, 46, 44, 0.08);
+  --radius-lg: 24px;
+  --radius-md: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Nunito", "Zen Maru Gothic", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+.app-shell {
+  min-height: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px 64px;
+}
+
+.app-shell__inner {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
