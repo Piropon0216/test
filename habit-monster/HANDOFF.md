@@ -16,15 +16,18 @@
 
 ### 2. 会話機能のバックエンド — `api/chat.js`
 - 現状: `src/components/ChatPanel.jsx`は環境を検知し、アーティファクト内では
-  Anthropic APIに直接fetch、それ以外では `/api/chat` を叩く設計にしてある。
-- 論点: `api/chat.js`は未実装のスタブ。ホスティング先(Vercel/Cloudflare Workers等)が
-  決まり次第、`ANTHROPIC_API_KEY`をサーバー側にのみ持たせる形で実装すること。
-  レート制限・不正利用対策(1ユーザーあたりの送信回数上限など)も未検討。
+  `window.claude.complete`、それ以外では `/api/chat` を叩く設計。
+- 実装済み: `api/chat.js`はVercelサーバーレス関数として実装済み。`ANTHROPIC_API_KEY`が
+  あればAnthropicを優先、なければ`GITHUB_TOKEN`(`models: read`権限PAT)でGitHub Models
+  にフォールバックする(`stock-diary`と同じ二段構え)。IP単位の簡易レート制限も実装済み
+  (インスタンス生存中のみ有効なベストエフォート。本番運用ではKV/Upstash等の永続ストアへの
+  置き換えが必要)。どちらの鍵も未設定ならチャットは静かにフォールバック表示になる。
+- 残TODO: 実際のホスティング先(Vercel等)への デプロイと、そこでの環境変数設定は未着手。
 
 ### 3. GitHub ★バッジ — `src/components/GithubStarBadge.jsx`
 - 公開API `api.github.com/repos/{owner}/{repo}` を認証なしで叩いているだけ(読み取り専用)。
-- 未認証GitHub APIはIPベースで60req/hourの制限あり。アクセスが増えるようならキャッシュ
-  (例: 5分程度のstale-while-revalidate)を検討。
+- 実装済み: 未認証GitHub APIのIPベース60req/hour制限対策として、`sessionStorage`に
+  5分stale-while-revalidateのキャッシュを実装済み。
 - 実際に★を「付け外し」する機能は要件から除外済み(表示+リンクのみ)。
 
 ## ディレクトリ構成
@@ -44,12 +47,14 @@ src/
     HabitLog.jsx          習慣チェックリスト
     AddHabitForm.jsx      習慣追加フォーム
     ChatPanel.jsx          会話UI(#2)
+  utils.test.js       ゲームロジックのユニットテスト(vitest)
 api/
-  chat.js             会話バックエンドのスタブ(未実装)
+  chat.js             会話バックエンド(Anthropic優先 → GitHub Modelsフォールバック)
 ```
 
 ## 未実装 / TODO
-- [ ] `api/chat.js` の実装とデプロイ設定
-- [ ] GitHub ★バッジのレート制限対策(必要になれば)
-- [ ] 複数端末同期が必要になった場合のバックエンドDB検討
-- [ ] E2E/ユニットテスト(現状なし)
+- [x] `api/chat.js` の実装(Anthropic / GitHub Models フォールバック) — デプロイ設定自体は未着手
+- [x] GitHub ★バッジのレート制限対策(5分キャッシュ実装済み)
+- [x] ユニットテスト(`src/utils.js`、`npm test`で実行。vitest導入済み)
+- [ ] 複数端末同期が必要になった場合のバックエンドDB検討(要件未確認のため保留)
+- [ ] コンポーネント/E2Eテスト(ロジック層のみで、UI側のテストはまだなし)

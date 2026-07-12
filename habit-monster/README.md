@@ -19,6 +19,7 @@ npm install
 npm run dev      # 開発サーバー
 npm run build    # 本番ビルド(dist/に出力)
 npm run preview  # ビルド結果をローカル確認
+npm test         # ゲームロジックのユニットテスト(vitest)
 ```
 
 ## データの保存
