@@ -1,4 +1,5 @@
-import { isHabitDoneOn } from "../utils";
+import { isHabitDoneOn, isHabitSatisfiedOn, countCompletionsInWeek } from "../utils";
+import { DEFAULT_TARGET_DAYS_PER_WEEK } from "../constants";
 
 export default function HabitLog({ habits, today, onToggle, onDelete }) {
   if (habits.length === 0) {
@@ -13,6 +14,11 @@ export default function HabitLog({ habits, today, onToggle, onDelete }) {
     <div className="card" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {habits.map((habit) => {
         const done = isHabitDoneOn(habit, today);
+        const target = habit.targetDaysPerWeek ?? DEFAULT_TARGET_DAYS_PER_WEEK;
+        const isWeekly = target < 7;
+        const weekCount = isWeekly ? countCompletionsInWeek(habit, today) : 0;
+        const satisfiedByWeek = isWeekly && !done && isHabitSatisfiedOn(habit, today);
+
         return (
           <div
             key={habit.id}
@@ -22,7 +28,7 @@ export default function HabitLog({ habits, today, onToggle, onDelete }) {
               gap: 10,
               padding: "10px 12px",
               borderRadius: "var(--radius-md)",
-              background: done ? "var(--accent-soft)" : "var(--bg)",
+              background: done ? "var(--accent-soft)" : satisfiedByWeek ? "var(--ring-track)" : "var(--bg)",
             }}
           >
             <button
@@ -43,16 +49,22 @@ export default function HabitLog({ habits, today, onToggle, onDelete }) {
             >
               {done ? "✓" : ""}
             </button>
-            <span
-              style={{
-                flex: 1,
-                fontWeight: 700,
-                textDecoration: done ? "line-through" : "none",
-                color: done ? "var(--ink-soft)" : "var(--ink)",
-              }}
-            >
-              {habit.name}
-            </span>
+            <div style={{ flex: 1 }}>
+              <div
+                style={{
+                  fontWeight: 700,
+                  textDecoration: done ? "line-through" : "none",
+                  color: done ? "var(--ink-soft)" : "var(--ink)",
+                }}
+              >
+                {habit.name}
+              </div>
+              {isWeekly && (
+                <div style={{ fontSize: 12, color: "var(--ink-soft)", fontWeight: 700, marginTop: 2 }}>
+                  {satisfiedByWeek ? "今週の目標は達成済み" : `週${target}回中${weekCount}回`}
+                </div>
+              )}
+            </div>
             <button
               onClick={() => onDelete(habit.id)}
               aria-label={`${habit.name} を削除`}

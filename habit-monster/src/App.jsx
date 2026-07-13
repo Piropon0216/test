@@ -7,10 +7,17 @@ import HabitLog from "./components/HabitLog";
 import AddHabitForm from "./components/AddHabitForm";
 import ChatPanel from "./components/ChatPanel";
 import { loadState, saveState } from "./storage";
-import { DEFAULT_MONSTER_NAME, XP_PER_HABIT, STREAK_BONUS_XP } from "./constants";
+import {
+  DEFAULT_MONSTER_NAME,
+  XP_PER_HABIT,
+  STREAK_BONUS_XP,
+  STREAK_FREEZE_INTERVAL,
+  MAX_STREAK_FREEZES,
+  DEFAULT_TARGET_DAYS_PER_WEEK,
+} from "./constants";
 import {
   todayStr,
-  yesterdayStr,
+  daysBetween,
   anyHabitDoneOn,
   allHabitsDoneOn,
   isHabitDoneOn,
@@ -27,6 +34,9 @@ const INITIAL_STATE = {
     lastCompletionDate: null,
     streakBeforeToday: 0,
     bonusAwardedDate: null,
+    streakFreezes: 0,
+    freezesBeforeToday: 0,
+    usedFreezeToday: false,
   },
   habits: [],
 };
@@ -38,7 +48,13 @@ export default function App() {
 
   useEffect(() => {
     loadState().then((saved) => {
-      if (saved) setState(saved);
+      if (saved) {
+        // 古い保存データに新フィールドが無くても壊れないよう既定値とマージする
+        setState({
+          monster: { ...INITIAL_STATE.monster, ...saved.monster },
+          habits: saved.habits ?? [],
+        });
+      }
       hasLoaded.current = true;
       setReady(true);
     });
@@ -49,12 +65,12 @@ export default function App() {
     saveState(state);
   }, [state]);
 
-  function addHabit(name) {
+  function addHabit(name, targetDaysPerWeek = DEFAULT_TARGET_DAYS_PER_WEEK) {
     setState((prev) => ({
       ...prev,
       habits: [
         ...prev.habits,
-        { id: makeId(), name, createdAt: todayStr(), completedDates: [] },
+        { id: makeId(), name, createdAt: todayStr(), completedDates: [], targetDaysPerWeek },
       ],
     }));
   }
@@ -91,13 +107,37 @@ export default function App() {
       if (!wasDone && monster.lastCompletionDate !== today) {
         // 今日はじめての完了 → ストリーク更新
         monster.streakBeforeToday = monster.streak;
-        monster.streak =
-          monster.lastCompletionDate === yesterdayStr(today) ? monster.streak + 1 : 1;
+        monster.freezesBeforeToday = monster.streakFreezes;
+        monster.usedFreezeToday = false;
+
+        const gap = monster.lastCompletionDate ? daysBetween(monster.lastCompletionDate, today) : null;
+        if (gap === 1) {
+          monster.streak += 1;
+        } else if (gap === 2 && monster.streakFreezes > 0) {
+          // ちょうど1日だけ抜けた → フリーズを1個消費してストリークを継続
+          monster.streak += 1;
+          monster.streakFreezes -= 1;
+          monster.usedFreezeToday = true;
+        } else {
+          monster.streak = 1;
+        }
+
+        if (!monster.usedFreezeToday && monster.streak % STREAK_FREEZE_INTERVAL === 0) {
+          monster.streakFreezes = Math.min(MAX_STREAK_FREEZES, monster.streakFreezes + 1);
+        }
+
         monster.lastCompletionDate = today;
       } else if (wasDone && !stillAnyDoneToday && monster.lastCompletionDate === today) {
-        // 今日の完了を全部取り消した → ストリークを巻き戻す
+        // 今日の完了を全部取り消した → ストリーク・フリーズを巻き戻す。
+        // lastCompletionDateをnullにすると、直後に別の習慣を再チェックした際に
+        // gapが計算不能になりストリークが1にリセットされてしまうため、
+        // 実際の履歴上の最終完了日(今日を除く)を再計算して設定する。
         monster.streak = monster.streakBeforeToday ?? 0;
-        monster.lastCompletionDate = null;
+        monster.streakFreezes = monster.freezesBeforeToday ?? monster.streakFreezes;
+        const allDates = nextHabits.flatMap((h) => h.completedDates);
+        monster.lastCompletionDate =
+          allDates.length > 0 ? allDates.reduce((max, d) => (d > max ? d : max)) : null;
+        monster.usedFreezeToday = false;
       }
 
       if (!wasDone && allHabitsDoneOn(nextHabits, today) && monster.bonusAwardedDate !== today) {
@@ -127,7 +167,12 @@ export default function App() {
   return (
     <Shell>
       <Header monsterName={state.monster.name} level={level} />
-      <MonsterCard xp={state.monster.xp} streak={state.monster.streak} />
+      <MonsterCard
+        xp={state.monster.xp}
+        streak={state.monster.streak}
+        streakFreezes={state.monster.streakFreezes}
+        usedFreezeToday={state.monster.usedFreezeToday && state.monster.lastCompletionDate === today}
+      />
 
       <div>
         <SectionLabel>今日の習慣</SectionLabel>

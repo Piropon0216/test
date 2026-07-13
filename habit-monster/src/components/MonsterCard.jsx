@@ -5,7 +5,7 @@ const STROKE = 10;
 const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-export default function MonsterCard({ xp, streak }) {
+export default function MonsterCard({ xp, streak, streakFreezes = 0, usedFreezeToday = false }) {
   const { level, xpIntoLevel, xpNeededForNext, progress } = getLevelProgress(xp);
   const stage = getStage(level);
   const offset = CIRCUMFERENCE * (1 - Math.min(progress, 1));
@@ -62,6 +62,12 @@ export default function MonsterCard({ xp, streak }) {
         {streak > 0 && (
           <div style={{ fontSize: 13, color: "var(--accent-strong)", fontWeight: 800, marginTop: 4 }}>
             🔥 {streak}日連続
+            {usedFreezeToday && "(🧊フリーズ発動中)"}
+          </div>
+        )}
+        {streakFreezes > 0 && (
+          <div style={{ fontSize: 12, color: "var(--sky)", fontWeight: 700, marginTop: 2 }}>
+            🧊 ストリークフリーズ ×{streakFreezes}
           </div>
         )}
       </div>
