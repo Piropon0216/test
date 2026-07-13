@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:pages": "vite build --outDir site --base /test/habit-monster/site/",
     "preview": "vite preview",
     "test": "vitest run"
   },

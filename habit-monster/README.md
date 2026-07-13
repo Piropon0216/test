@@ -2,6 +2,10 @@
 
 習慣を記録するとモンスターが育っていく、習慣化トラッキング × 育成ゲームのReact SPAです。
 
+🔗 **[今すぐ遊ぶ → https://piropon0216.github.io/test/habit-monster/site/](https://piropon0216.github.io/test/habit-monster/site/)**
+(GitHub Pagesでの静的公開。習慣トラッキング・育成機能はフル動作します。
+おしゃべり機能はバックエンド未設定のため「いまはお話しできないみたい…」表示になります)
+
 ## 遊び方
 
 1. 「新しい習慣を追加」から続けたい習慣を登録する
@@ -16,11 +20,17 @@
 
 ```bash
 npm install
-npm run dev      # 開発サーバー
-npm run build    # 本番ビルド(dist/に出力)
-npm run preview  # ビルド結果をローカル確認
-npm test         # ゲームロジックのユニットテスト(vitest)
+npm run dev         # 開発サーバー
+npm run build       # 本番ビルド(dist/に出力。gitignore対象)
+npm run preview     # ビルド結果をローカル確認
+npm test            # ゲームロジックのユニットテスト(vitest)
+npm run build:pages # GitHub Pages公開用ビルド(site/に出力。コミット対象)
 ```
+
+`site/`は上記GitHub Pagesリンクとして実際にコミットされているビルド成果物です。
+`kuromi_game.html`や`stock-diary/index.html`と同様、このリポジトリはビルドステップなしで
+mainブランチのルートをそのまま配信する設定のため、公開用ファイルは都度ビルドしてコミットする
+運用にしています。ソースを変更したら`npm run build:pages`を再実行して`site/`を更新してください。
 
 ## データの保存
 
