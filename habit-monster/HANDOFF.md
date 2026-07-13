@@ -32,6 +32,18 @@
   5分stale-while-revalidateのキャッシュを実装済み。
 - 実際に★を「付け外し」する機能は要件から除外済み(表示+リンクのみ)。
 
+### 4. 継続維持ロジック — `src/utils.js` / `App.jsx`
+- ストリークフリーズ: `STREAK_FREEZE_INTERVAL`(7)日連続ごとに1個獲得、`MAX_STREAK_FREEZES`(3)まで
+  保持。ちょうど1日だけ抜けた場合(`daysBetween`が2)にフリーズを消費してストリークを継続する。
+  2日以上抜けると通常通りリセット。`App.jsx`の`toggleHabit`内で完結しており、取り消し(アンチェック)
+  時のロールバック(`freezesBeforeToday`)も実装済み。
+- 週次頻度: 習慣ごとに`targetDaysPerWeek`(7=毎日、それ未満は週N回)を持つ。`isHabitSatisfiedOn`が
+  「その日にやったか、週の目標に既に達しているか」を判定し、ボーナスXP判定(`allHabitsDoneOn`)や
+  `HabitLog`の週間進捗表示に使われる。既存データ(フィールド無し)は`?? DEFAULT_TARGET_DAYS_PER_WEEK`
+  で毎日扱いにフォールバックするため後方互換。
+- Google OIDCでの認証は技術的に可能(Google Identity Services + サーバー側でのIDトークン検証)だが、
+  静的ホスティングだけでは完結せず#1のバックエンドDBとセットでの検討が必要。要件未確認のため未着手。
+
 ## ディレクトリ構成
 ```
 src/
@@ -60,7 +72,9 @@ api/
 - [x] ユニットテスト(`src/utils.js`、`npm test`で実行。vitest導入済み)
 - [x] GitHub Pagesでの静的公開(`npm run build:pages` → `site/` をコミット。
       https://piropon0216.github.io/test/habit-monster/site/ )。チャットのバックエンドは含まない
-- [ ] 複数端末同期が必要になった場合のバックエンドDB検討(要件未確認のため保留)
+- [x] ストリークフリーズ(サボり許容)・習慣ごとの週次頻度設定
+- [ ] 複数端末同期が必要になった場合のバックエンドDB検討(Google OIDC認証込みで要件確認後に着手)
 - [ ] コンポーネント/E2Eテスト(ロジック層のみで、UI側のテストはまだなし)
 - [ ] チャット機能もフルで使えるようにするなら、`api/chat.js`をVercel等に別途デプロイし、
       GitHub Pages版のフロントから叩けるようCORS/エンドポイントを見直す必要がある
+- [ ] 効果音・モンスターの読み上げ(TTS)などの音声拡張(未着手、次候補)

@@ -3,10 +3,14 @@ import {
   addDays,
   allHabitsDoneOn,
   anyHabitDoneOn,
+  countCompletionsInWeek,
+  daysBetween,
   getLevelProgress,
   getStage,
   isHabitDoneOn,
+  isHabitSatisfiedOn,
   levelFromXp,
+  startOfWeekStr,
   todayStr,
   xpForLevel,
   yesterdayStr,
@@ -100,5 +104,63 @@ describe("habit completion helpers", () => {
   it("anyHabitDoneOn is true if at least one habit is done", () => {
     expect(anyHabitDoneOn([habitNotDone], today)).toBe(false);
     expect(anyHabitDoneOn([habitDone, habitNotDone], today)).toBe(true);
+  });
+});
+
+describe("daysBetween", () => {
+  it("is 0 for the same day", () => {
+    expect(daysBetween("2026-07-12", "2026-07-12")).toBe(0);
+  });
+
+  it("is 1 for consecutive days", () => {
+    expect(daysBetween("2026-07-12", "2026-07-13")).toBe(1);
+  });
+
+  it("counts across a month boundary", () => {
+    expect(daysBetween("2026-07-31", "2026-08-02")).toBe(2);
+  });
+});
+
+describe("startOfWeekStr", () => {
+  it("returns the same date for a Monday", () => {
+    // 2026-07-13 is a Monday
+    expect(startOfWeekStr("2026-07-13")).toBe("2026-07-13");
+  });
+
+  it("returns the preceding Monday for a Sunday", () => {
+    expect(startOfWeekStr("2026-07-19")).toBe("2026-07-13");
+  });
+});
+
+describe("weekly-frequency habits", () => {
+  const monday = "2026-07-13";
+  const wednesday = "2026-07-15";
+  const friday = "2026-07-17";
+
+  it("countCompletionsInWeek only counts the current week up to the given date", () => {
+    const habit = { completedDates: ["2026-07-06", monday, wednesday] }; // 07-06 is last week
+    expect(countCompletionsInWeek(habit, wednesday)).toBe(2);
+  });
+
+  it("a daily (target 7) habit is only satisfied by doing it today", () => {
+    const habit = { targetDaysPerWeek: 7, completedDates: [monday] };
+    expect(isHabitSatisfiedOn(habit, monday)).toBe(true);
+    expect(isHabitSatisfiedOn(habit, wednesday)).toBe(false);
+  });
+
+  it("a weekly-target habit is satisfied once its quota is met, even on off days", () => {
+    const habit = { targetDaysPerWeek: 2, completedDates: [monday, wednesday] };
+    expect(isHabitSatisfiedOn(habit, friday)).toBe(true);
+  });
+
+  it("a weekly-target habit is not satisfied before its quota is met", () => {
+    const habit = { targetDaysPerWeek: 2, completedDates: [monday] };
+    expect(isHabitSatisfiedOn(habit, wednesday)).toBe(false);
+  });
+
+  it("allHabitsDoneOn treats a met weekly quota as done for bonus-XP purposes", () => {
+    const daily = { targetDaysPerWeek: 7, completedDates: [friday] };
+    const weekly = { targetDaysPerWeek: 2, completedDates: [monday, wednesday] };
+    expect(allHabitsDoneOn([daily, weekly], friday)).toBe(true);
   });
 });
