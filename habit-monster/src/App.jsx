@@ -128,10 +128,15 @@ export default function App() {
 
         monster.lastCompletionDate = today;
       } else if (wasDone && !stillAnyDoneToday && monster.lastCompletionDate === today) {
-        // 今日の完了を全部取り消した → ストリーク・フリーズを巻き戻す
+        // 今日の完了を全部取り消した → ストリーク・フリーズを巻き戻す。
+        // lastCompletionDateをnullにすると、直後に別の習慣を再チェックした際に
+        // gapが計算不能になりストリークが1にリセットされてしまうため、
+        // 実際の履歴上の最終完了日(今日を除く)を再計算して設定する。
         monster.streak = monster.streakBeforeToday ?? 0;
         monster.streakFreezes = monster.freezesBeforeToday ?? monster.streakFreezes;
-        monster.lastCompletionDate = null;
+        const allDates = nextHabits.flatMap((h) => h.completedDates);
+        monster.lastCompletionDate =
+          allDates.length > 0 ? allDates.reduce((max, d) => (d > max ? d : max)) : null;
         monster.usedFreezeToday = false;
       }
 
