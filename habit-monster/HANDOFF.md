@@ -22,7 +22,9 @@
   にフォールバックする(`stock-diary`と同じ二段構え)。IP単位の簡易レート制限も実装済み
   (インスタンス生存中のみ有効なベストエフォート。本番運用ではKV/Upstash等の永続ストアへの
   置き換えが必要)。どちらの鍵も未設定ならチャットは静かにフォールバック表示になる。
-- 残TODO: 実際のホスティング先(Vercel等)への デプロイと、そこでの環境変数設定は未着手。
+- 残TODO: サーバーレス関数(`api/chat.js`)自体はVercel等へのデプロイと環境変数設定が
+  未着手。現在GitHub Pagesで公開しているビルド(下記)にはこのAPIルートは存在しないため、
+  チャット機能は静的公開時点では常にフォールバック表示になる。
 
 ### 3. GitHub ★バッジ — `src/components/GithubStarBadge.jsx`
 - 公開API `api.github.com/repos/{owner}/{repo}` を認証なしで叩いているだけ(読み取り専用)。
@@ -53,8 +55,12 @@ api/
 ```
 
 ## 未実装 / TODO
-- [x] `api/chat.js` の実装(Anthropic / GitHub Models フォールバック) — デプロイ設定自体は未着手
+- [x] `api/chat.js` の実装(Anthropic / GitHub Models フォールバック) — サーバーレス関数自体のデプロイは未着手
 - [x] GitHub ★バッジのレート制限対策(5分キャッシュ実装済み)
 - [x] ユニットテスト(`src/utils.js`、`npm test`で実行。vitest導入済み)
+- [x] GitHub Pagesでの静的公開(`npm run build:pages` → `site/` をコミット。
+      https://piropon0216.github.io/test/habit-monster/site/ )。チャットのバックエンドは含まない
 - [ ] 複数端末同期が必要になった場合のバックエンドDB検討(要件未確認のため保留)
 - [ ] コンポーネント/E2Eテスト(ロジック層のみで、UI側のテストはまだなし)
+- [ ] チャット機能もフルで使えるようにするなら、`api/chat.js`をVercel等に別途デプロイし、
+      GitHub Pages版のフロントから叩けるようCORS/エンドポイントを見直す必要がある
