@@ -111,4 +111,4 @@
 | [`index.html`](index.html) | MINIMAL SHOP（サイトトップ） |
 | [`kuromi_game.html`](kuromi_game.html) | クロミちゃんテーマのパズルゲーム |
 | [`stock-diary/`](stock-diary/) | LLM 株式銘柄 日記（上記） |
-| [`habit-monster/`](habit-monster/site/) | 習慣化するとモンスターが育つ育成ゲームアプリ（[今すぐ遊ぶ](https://piropon0216.github.io/test/habit-monster/site/)。React/Vite製、詳細は[`habit-monster/README.md`](habit-monster/README.md)） |
+| [`habit-monster/`](habit-monster/) | 習慣化するとモンスターが育つ育成ゲームアプリ（[今すぐ遊ぶ](https://piropon0216.github.io/test/habit-monster/site/)。React/Vite製、詳細は[`habit-monster/README.md`](habit-monster/README.md)） |
